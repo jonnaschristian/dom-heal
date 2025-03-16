@@ -1,0 +1,39 @@
+{
+    "headings": [
+        "XYZ Bank"
+    ],
+    "links_and_buttons": [
+        {
+            "type": "Button as link",
+            "text": "Home",
+            "url": null
+        },
+        {
+            "type": "Button as link",
+            "text": "Customer Login",
+            "url": null
+        },
+        {
+            "type": "Button as link",
+            "text": "Bank Manager Login",
+            "url": null
+        }
+    ],
+    "standard_buttons": [],
+    "images": [],
+    "input_fields": [],
+    "tables": [],
+    "div_classes": [
+        "ng-scope",
+        "container-fluid ng-scope",
+        "box mainhdr",
+        "ng-scope",
+        "ng-scope",
+        "borderM box padT20",
+        "center",
+        "center",
+        "container-fluid mainBox ng-scope"
+    ],
+    "span_classes": [],
+    "elements_with_id": []
+}
