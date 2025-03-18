@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Self-Healing Test Site</title>
+    <script>
+        let changeCount = 0;
+
+        function modifyDOM() {
+            changeCount++;
+            console.log(`🔄 Change #${changeCount}: Modifying DOM...`);
+
+            // Mudança no título principal
+            let title = document.getElementById("main-title") || document.getElementById("updated-title");
+            if (title) {
+                let newId = title.id === "main-title" ? "updated-title" : "main-title";
+                title.id = newId;
+                title.textContent = `Self-Healing Test - Changed ${changeCount} times`;
+                console.log(`✅ Title ID changed to: ${newId}`);
+            }
+
+            // Mudança no ID do botão de login
+            let loginBtn = document.getElementById("login-btn") || document.getElementById("updated-login-btn");
+            if (loginBtn) {
+                let newId = loginBtn.id === "login-btn" ? "updated-login-btn" : "login-btn";
+                loginBtn.id = newId;
+                loginBtn.classList.toggle("btn-primary");
+                loginBtn.classList.toggle("btn-secondary");
+                loginBtn.textContent = `Login Modified ${changeCount} times`;
+                console.log(`✅ Login Button ID changed to: ${newId}`);
+            }
+
+            // Mudança no ID do input de usuário
+            let usernameInput = document.getElementById("username") || document.getElementById("updated-username");
+            if (usernameInput) {
+                let newId = usernameInput.id === "username" ? "updated-username" : "username";
+                usernameInput.id = newId;
+                usernameInput.name = `user_changed_${changeCount}`;
+                usernameInput.placeholder = `Username changed ${changeCount} times`;
+                console.log(`✅ Username Input ID changed to: ${newId}`);
+            }
+        }
+
+        // Executa a mudança no DOM a cada 5 segundos
+        setInterval(modifyDOM, 20000);
+    </script>
+    <style>
+        /* Reset básico */
+        * { 
+            margin: 0; 
+            padding: 0; 
+            box-sizing: border-box; 
+            font-family: 'Arial', sans-serif; 
+        }
+
+        /* Estilo do cabeçalho */
+        header {
+            background: linear-gradient(90deg, #007bff, #00c6ff);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            font-size: 26px;
+            font-weight: bold;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Estrutura geral */
+        .container {
+            width: 90%;
+            max-width: 600px;
+            margin: 40px auto;
+            padding: 25px;
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Botões estilizados */
+        .btn-primary, .btn-secondary {
+            padding: 12px 18px;
+            border: none;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border-radius: 5px;
+            display: block;
+            width: 100%;
+            text-align: center;
+            margin-top: 15px;
+            font-weight: bold;
+        }
+
+        .btn-primary { background-color: #007bff; color: white; }
+        .btn-secondary { background-color: #ff3b3b; color: white; }
+
+        .btn-primary:hover { background-color: #0056b3; transform: scale(1.05); }
+        .btn-secondary:hover { background-color: #c10000; transform: scale(1.05); }
+
+        /* Input estilizado */
+        input {
+            padding: 12px;
+            font-size: 16px;
+            width: 100%;
+            margin-top: 10px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            transition: all 0.3s ease;
+        }
+
+        input:focus {
+            border-color: #007bff;
+            outline: none;
+            box-shadow: 0px 0px 8px rgba(0, 123, 255, 0.5);
+        }
+
+        /* Estilizando seções */
+        h2 {
+            margin-top: 20px;
+            border-bottom: 3px solid #007bff;
+            display: inline-block;
+            padding-bottom: 5px;
+            margin-bottom: 15px;
+            font-size: 20px;
+        }
+
+        /* Efeito visual nas mudanças */
+        .changing {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0.5; transform: scale(0.98); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1 id="main-title">Self-Healing Testing Site</h1>
+    </header>
+
+    <div class="container">
+        <h2>Login Section</h2>
+        <input type="text" id="username" name="user_input" placeholder="Enter your username">
+        <button id="login-btn" class="btn-primary">Login</button>
+    </div>
+
+</body>
+</html>
