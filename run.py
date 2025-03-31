@@ -1,17 +1,18 @@
+
 import os
-from self_healing.core.extractor import extract_dom_elements, save_data_as_json
+from self_healing.core.extractor import extrair_elementos_dom, salvar_como_json
 
 # URL do site a ser testado (ajuste conforme necessário)
-website_url = "https://open.spotify.com/"
+url_site = "http://localhost:8000/dynamic_test.html"
 
 # Realiza a extração dos elementos do DOM
-dados_extraidos = extract_dom_elements(website_url)
+elementos_extraidos = extrair_elementos_dom(url_site)
 
 # Define o caminho para salvar o JSON na pasta "data" na raiz do projeto
-current_dir = os.path.dirname(os.path.abspath(__file__))
-output_dir = os.path.join(current_dir, "data")
-os.makedirs(output_dir, exist_ok=True)
-output_file = os.path.join(output_dir, "dados_extraidos.json")
+diretorio_atual = os.path.dirname(os.path.abspath(__file__))
+caminho_saida = os.path.join(diretorio_atual, "data")
+os.makedirs(caminho_saida, exist_ok=True)
+arquivo_saida = os.path.join(caminho_saida, "elementos_extraidos.json")
 
-save_data_as_json(dados_extraidos, output_file)
-print(f"✅ Extração concluída. Dados salvos em: {output_file}")
+salvar_como_json(elementos_extraidos, arquivo_saida)
+print(f"✅ Extração concluída. Dados salvos em: {arquivo_saida}")
