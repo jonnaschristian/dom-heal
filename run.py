@@ -15,4 +15,3 @@ os.makedirs(caminho_saida, exist_ok=True)
 arquivo_saida = os.path.join(caminho_saida, "elementos_extraidos.json")
 
 salvar_como_json(elementos_extraidos, arquivo_saida)
-print(f"✅ Extração concluída. Dados salvos em: {arquivo_saida}")
