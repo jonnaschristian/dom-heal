@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Site de Teste Self-Healing</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family: Arial, sans-serif;
+      }
+
+      header,
+      footer {
+        background: #222;
+        color: #fff;
+        text-align: center;
+        padding: 20px;
+      }
+
+      .container {
+        width: 90%;
+        max-width: 600px;
+        margin: 40px auto;
+        padding: 25px;
+        background: #fff;
+        border-radius: 10px;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+      }
+
+      .btn-primario,
+      .btn-secundario {
+        display: block;
+        width: 100%;
+        padding: 12px;
+        color: #fff;
+        border: none;
+        border-radius: 5px;
+        font-size: 16px;
+        cursor: pointer;
+        margin-top: 10px;
+      }
+
+      .btn-primario {
+        background: #007bff;
+      }
+
+      .btn-secundario {
+        background: #28a745;
+      }
+
+      form {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      label {
+        font-weight: bold;
+      }
+
+      input,
+      textarea,
+      select {
+        padding: 10px;
+        font-size: 14px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+      }
+
+      #timer {
+        text-align: center;
+        margin: 20px 0;
+        font-size: 18px;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+      }
+
+      th,
+      td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: left;
+      }
+
+      th {
+        background: #f4f4f4;
+      }
+
+      a {
+        color: #007bff;
+        text-decoration: none;
+      }
+
+      a:hover {
+        text-decoration: underline;
+      }
+
+      img {
+        display: block;
+        max-width: 100%;
+        margin: 10px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      id="app"
+      aria-label="Conteúdo principal do site"
+    ></div>
+
+    <div id="timer" aria-label="Contador de troca">
+      Trocando em
+      <span id="count" aria-label="Segundos restantes">10</span>s...
+    </div>
+
+    <button
+      id="manualBtn"
+      class="btn-secundario"
+      aria-label="Trocar versão"
+    >
+      Trocar Agora
+    </button>
+
+    <template id="siteA">
+      <header aria-label="Cabeçalho da versão A">
+        <h1>Versão A do Site</h1>
+      </header>
+
+      <div class="container" aria-label="Conteúdo da Versão A">
+        <h2>Bem-vindo!</h2>
+        <p>Esta é a versão A do site de teste. Confira nossos recursos:</p>
+        <ul aria-label="Lista de recursos">
+          <li>Recurso 1</li>
+          <li>Recurso 2</li>
+          <li>Recurso 3</li>
+        </ul>
+        <a
+          href="#"
+          target="_blank"
+          aria-label="Saiba mais sobre a empresa"
+        >
+          Saiba mais
+        </a>
+        <img
+          src="https://via.placeholder.com/150"
+          alt="Logo da Empresa"
+          id="logo-img"
+          aria-label="Logotipo da Empresa"
+        />
+
+        <form id="formA" aria-label="Formulário de contato Versão A">
+          <input
+            type="text"
+            id="usuario"
+            name="usuario"
+            placeholder="Digite seu usuário"
+            aria-label="Campo usuário"
+          />
+          <textarea
+            id="comentario"
+            name="comentario"
+            placeholder="Escreva seu comentário"
+            aria-label="Campo de comentário"
+          ></textarea>
+          <select
+            id="opcoes"
+            name="opcoes"
+            aria-label="Opções de seleção"
+          >
+            <option value="1">Opção 1</option>
+            <option value="2">Opção 2</option>
+            <option value="3">Opção 3</option>
+          </select>
+          <button
+            type="submit"
+            class="btn-primario"
+            aria-label="Enviar formulário A"
+          >
+            Enviar
+          </button>
+        </form>
+
+        <table id="tabelaA" aria-label="Tabela de valores A">
+          <thead>
+            <tr>
+              <th>Coluna 1</th>
+              <th>Coluna 2</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Valor A1</td>
+              <td>Valor A2</td>
+            </tr>
+            <tr>
+              <td>Valor B1</td>
+              <td>Valor B2</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <footer aria-label="Rodapé da Versão A">
+        <p>© 2025 Empresa A</p>
+      </footer>
+    </template>
+
+    <template id="siteB">
+      <header aria-label="Cabeçalho da versão B">
+        <h1>Versão B do Site</h1>
+      </header>
+
+      <div class="container" aria-label="Conteúdo da Versão B">
+        <h2>Layout Atualizado!</h2>
+        <p>Agora você vê a versão B, totalmente reformulada.</p>
+
+        <form id="login-form" aria-label="Formulário de login Versão B">
+          <label for="email">E-mail:</label>
+          <input
+            type="email"
+            id="email"
+            name="email"
+            placeholder="Digite seu e-mail"
+            aria-label="Campo e-mail"
+          />
+          <button
+            type="submit"
+            class="btn-secundario"
+            aria-label="Continuar para login"
+          >
+            Continuar
+          </button>
+        </form>
+
+        <p>Versão de teste com novos componentes em português.</p>
+        <a
+          href="#"
+          id="docs-link"
+          aria-label="Link para documentação"
+        >
+          Documentação
+        </a>
+        <img
+          src="https://via.placeholder.com/200"
+          alt="Imagem de Teste"
+          aria-label="Imagem ilustrativa da Versão B"
+        />
+
+        <textarea
+          id="feedback"
+          name="feedback"
+          rows="3"
+          placeholder="Deixe seu feedback"
+          aria-label="Campo de feedback"
+        ></textarea>
+        <select
+          id="choices"
+          name="choices"
+          aria-label="Opções de escolha"
+        >
+          <option value="A">Escolha A</option>
+          <option value="B">Escolha B</option>
+          <option value="C">Escolha C</option>
+        </select>
+
+        <table id="tabelaB" aria-label="Tabela de valores B">
+          <thead>
+            <tr>
+              <th>Cabeçalho 1</th>
+              <th>Cabeçalho 2</th>
+              <th>Cabeçalho 3</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Item 1</td>
+              <td>Descrição 1</td>
+              <td>Extra 1</td>
+            </tr>
+            <tr>
+              <td>Item 2</td>
+              <td>Descrição 2</td>
+              <td>Extra 2</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <footer aria-label="Rodapé da Versão B">
+        <p>© 2025 Empresa B - Novo Design</p>
+      </footer>
+    </template>
+
+    <script>
+      const app = document.getElementById('app');
+      const tplA = document.getElementById('siteA').content.cloneNode(true);
+      const tplB = document.getElementById('siteB').content.cloneNode(true);
+      const timerEl = document.getElementById('count');
+      const manualBtn = document.getElementById('manualBtn');
+      let countdown = 10;
+      let intervalId;
+
+      function swapToB() {
+        clearInterval(intervalId);
+        timerEl.textContent = '0';
+        app.innerHTML = '';
+        app.appendChild(tplB);
+        console.log('🔄 Site trocado para a versão B');
+      }
+
+      // Renderiza a versão A
+      app.appendChild(tplA);
+
+      // Atualiza timer a cada segundo
+      intervalId = setInterval(() => {
+        countdown--;
+        timerEl.textContent = countdown;
+        if (countdown <= 0) swapToB();
+      }, 1000);
+
+      // Botão para troca manual imediata
+      manualBtn.addEventListener('click', swapToB);
+    </script>
+  </body>
+</html>
