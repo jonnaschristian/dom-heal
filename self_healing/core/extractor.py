@@ -1,133 +1,90 @@
-"""
-self_healing.core.extractor
+#!/usr/bin/env python3
+# extractor.py
+# Biblioteca de extração de elementos do DOM via Selenium
+# Versão finalizada: funções encapsuladas e comentários gerais explicativos
 
-Módulo de extração de elementos do DOM em modo "full" para manutenção de testes automatizados.
-
-Coleta para cada elemento:
-- tag: nome da tag HTML
-- id: atributo id
-- name: atributo name
-- class: atributo class
-- type: tipo de input (quando aplicável)
-- text: texto interno do elemento
-- aria_label: valor do atributo aria-label
-- xpath: caminho absoluto no DOM
-"""
-import json
 import time
-from typing import List, Dict, Any
-
 from selenium import webdriver
-from selenium.common.exceptions import WebDriverException
-from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 
+# Snippet JavaScript para cálculo do XPath absoluto
+GET_XPATH_JS = """
+function absoluteXPath(el){
+    var segs = [];
+    for (; el && el.nodeType==1; el=el.parentNode){
+        var i=1, sib=el.previousSibling;
+        for (; sib; sib= sib.previousSibling)
+            if (sib.nodeType==1 && sib.nodeName==el.nodeName) i++;
+        segs.unshift(el.nodeName.toLowerCase() + '[' + i + ']');
+    }
+    return '/' + segs.join('/');
+}
+return absoluteXPath(arguments[0]);
+"""
 
-def obter_xpath(elemento) -> str:
-    """
-    Gera o XPath absoluto de um elemento WebElement subindo na árvore DOM e contando irmãos.
+# Snippet JavaScript para extrair atributos data-* dinamicamente
+GET_DATA_ATTRS_JS = """
+var attrs = arguments[0].attributes;
+var result = {};
+for (var i = 0; i < attrs.length; i++) {
+    var name = attrs[i].name;
+    if (name.startsWith('data-')) {
+        var key = name.replace(/-/g, '_');
+        result[key] = attrs[i].value || '';
+    }
+}
+return result;
+"""
 
-    Args:
-        elemento (WebElement): elemento cujo XPath será extraído.
+def criar_driver() -> webdriver.Chrome:
+    # Configura o Chrome em modo headless e retorna o driver
+    options = webdriver.ChromeOptions()
+    options.add_argument('--headless')
+    options.add_argument('--disable-gpu')
+    options.add_argument('--log-level=3')                       # suprime logs do ChromeDriver
+    options.add_experimental_option('excludeSwitches', ['enable-logging'])
+    # Baixa/atualiza automaticamente o ChromeDriver compatível
+    service = Service(ChromeDriverManager().install())
+    return webdriver.Chrome(service=service, options=options)
 
-    Returns:
-        str: XPath absoluto.
-    """
-    partes: List[str] = []
-    atual = elemento
-
-    while True:
-        pai = atual.find_element(By.XPATH, "..")
-        irmaos = pai.find_elements(By.XPATH, f"./{atual.tag_name}")
-        indice = irmaos.index(atual) + 1
-        partes.insert(0, f"{atual.tag_name}[{indice}]")
-        if pai.tag_name.lower() == 'html':
-            break
-        atual = pai
-
-    return '/' + '/'.join(partes)
-
-
-def extrair_elementos_dom(url: str) -> List[Dict[str, Any]]:
-    """
-    Extrai atributos de todos os elementos dentro de <body> em modo full.
-
-    Realiza:
-      1) Navegação headless ao URL
-      2) Espera explícita de até 10s pelo document.readyState == "complete"
-      3) Scroll até o fim para carregar conteúdo dinâmico
-      4) Coleta de tag, id, name, class, type, text, aria_label e xpath
-
-    Args:
-        url (str): endereço da página.
-
-    Returns:
-        List[Dict[str, Any]]: lista de dicionários com informações dos elementos.
-    """
-    # Configuração do Chrome headless
-    opcoes = webdriver.ChromeOptions()
-    opcoes.add_argument("--headless")
-    opcoes.add_argument("--disable-gpu")
-    opcoes.add_argument("--log-level=3")
-    opcoes.add_experimental_option('excludeSwitches', ['enable-logging'])
-
-    navegador = webdriver.Chrome(
-        service=Service(ChromeDriverManager().install()),
-        options=opcoes
+def carregar_pagina(driver: webdriver.Chrome, url: str, timeout: int = 10):
+    # Abre a página, espera readyState == 'complete' e faz scroll até o fim
+    driver.get(url)
+    WebDriverWait(driver, timeout).until(
+        lambda d: d.execute_script("return document.readyState") == 'complete'
     )
+    driver.execute_script('window.scrollTo(0, document.body.scrollHeight)')
+    time.sleep(1)
 
+def obter_xpath(driver: webdriver.Chrome, elemento) -> str:
+    # Executa o snippet JS para obter o XPath absoluto
+    return driver.execute_script(GET_XPATH_JS, elemento)
+
+def extrair_elementos_dom(url: str) -> list:
+    # Extrai todos os elementos do <body> e retorna lista de dicionários
+    driver = criar_driver()
     try:
-        navegador.get(url)
-        # Espera até que a página esteja completamente carregada (máx. 10s)
-        WebDriverWait(navegador, 10).until(
-            lambda d: d.execute_script("return document.readyState") == "complete"
-        )
-    except WebDriverException as e:
-        print(f"Erro ao acessar {url}: {e}")
-        navegador.quit()
-        return []
-
-    # Aguarda carregamento de scripts dinâmicos e faz scroll
-    navegador.implicitly_wait(2)
-    time.sleep(1)
-    navegador.execute_script("window.scrollTo(0, document.body.scrollHeight)")
-    time.sleep(1)
-
-    # Captura todos os elementos de <body>, excluindo meta, script, style, link e head
-    consulta = (
-        "//body//*[not(self::script or self::style or self::meta "
-        "or self::link or self::head)]"
-    )
-    elementos = navegador.find_elements(By.XPATH, consulta)
-
-    resultados: List[Dict[str, Any]] = []
-    for el in elementos:
-        info: Dict[str, Any] = {
-            "tag": el.tag_name,
-            "id": el.get_attribute("id"),
-            "name": el.get_attribute("name"),
-            "class": el.get_attribute("class"),
-            "type": el.get_attribute("type"),
-            "text": el.text.strip(),
-            "aria_label": el.get_attribute("aria-label"),
-            "xpath": obter_xpath(el)
-        }
-        resultados.append(info)
-
-    navegador.quit()
-    return resultados
-
-
-def salvar_como_json(dados: List[Dict[str, Any]], caminho_arquivo: str) -> None:
-    """
-    Salva a lista de elementos extraídos em arquivo JSON formatado.
-
-    Args:
-        dados (List[Dict[str, Any]]): lista de dicionários com informações.
-        caminho_arquivo (str): caminho de destino do JSON.
-    """
-    with open(caminho_arquivo, "w", encoding="utf-8") as arquivo:
-        json.dump(dados, arquivo, ensure_ascii=False, indent=4)
-    print(f"✅ Dados salvos em: {caminho_arquivo}")
+        carregar_pagina(driver, url)
+        elementos = driver.find_elements(By.XPATH, "//body//*")
+        resultados = []
+        for el in elementos:
+            info = {
+                'tag':         el.tag_name,
+                'id':          el.get_attribute('id') or '',
+                'class':       el.get_attribute('class') or '',
+                'text':        el.text.strip(),
+                'name':        el.get_attribute('name') or '',
+                'type':        el.get_attribute('type') or '',
+                'aria_label':  el.get_attribute('aria-label') or '',
+                'xpath':       obter_xpath(driver, el)
+            }
+            # Extrai todos os atributos data-* e adiciona ao dicionário
+            data_attrs = driver.execute_script(GET_DATA_ATTRS_JS, el)
+            info.update(data_attrs)
+            resultados.append(info)
+        return resultados
+    finally:
+        driver.quit()

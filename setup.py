@@ -7,12 +7,13 @@ setup(
     author='Jonnas Christian Sousa de Paiva',
     packages=find_packages(),
     install_requires=[
-        'selenium',
-        'webdriver-manager'
+        'rapidfuzz>=3.13.0',        # fuzzy matching de alta performance
+        'selenium>=4.29.0',         # captura de snapshots via Selenium
+        'webdriver-manager>=4.0.2'  # gerencia drivers do navegador
     ],
     entry_points={
         'console_scripts': [
             'extrair-dom = self_healing.core.extractor:extrair_elementos_dom'
         ]
-    }
+    },
 )
