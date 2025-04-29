@@ -1,7 +1,4 @@
-#!/usr/bin/env python3
-# extractor.py
-# Biblioteca de extração de elementos do DOM via Selenium
-# Versão finalizada: funções encapsuladas e comentários gerais explicativos
+# Biblioteca de extração de elementos do DOM via Selenium: coleta atributos e XPath de cada nó
 
 import time
 from selenium import webdriver
