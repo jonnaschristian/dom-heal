@@ -1,3 +1,4 @@
+# extractor.py
 # Biblioteca de extração de elementos do DOM via Selenium: coleta atributos e XPath de cada nó
 
 import time
@@ -27,61 +28,76 @@ GET_DATA_ATTRS_JS = """
 var attrs = arguments[0].attributes;
 var result = {};
 for (var i = 0; i < attrs.length; i++) {
-    var name = attrs[i].name;
-    if (name.startsWith('data-')) {
-        var key = name.replace(/-/g, '_');
-        result[key] = attrs[i].value || '';
+    var nome = attrs[i].name;
+    if (nome.startsWith('data-')) {
+        var chave = nome.replace(/-/g, '_');
+        result[chave] = attrs[i].value || '';
     }
 }
 return result;
 """
 
+
 def criar_driver() -> webdriver.Chrome:
-    # Configura o Chrome em modo headless e retorna o driver
-    options = webdriver.ChromeOptions()
-    options.add_argument('--headless')
-    options.add_argument('--disable-gpu')
-    options.add_argument('--log-level=3')                       # suprime logs do ChromeDriver
-    options.add_experimental_option('excludeSwitches', ['enable-logging'])
-    # Baixa/atualiza automaticamente o ChromeDriver compatível
-    service = Service(ChromeDriverManager().install())
-    return webdriver.Chrome(service=service, options=options)
+    """Configura e retorna instância headless do Chrome"""
+    opcoes = webdriver.ChromeOptions()
+    opcoes.add_argument('--headless')
+    opcoes.add_argument('--disable-gpu')
+    opcoes.add_argument('--log-level=3')
+    opcoes.add_experimental_option('excludeSwitches', ['enable-logging'])
+    servico = Service(ChromeDriverManager().install())
+    return webdriver.Chrome(service=servico, options=opcoes)
+
 
 def carregar_pagina(driver: webdriver.Chrome, url: str, timeout: int = 10):
-    # Abre a página, espera readyState == 'complete' e faz scroll até o fim
+    """Carrega página e aguarda readyState == 'complete'"""
     driver.get(url)
     WebDriverWait(driver, timeout).until(
-        lambda d: d.execute_script("return document.readyState") == 'complete'
+        lambda drv: drv.execute_script("return document.readyState") == 'complete'
     )
     driver.execute_script('window.scrollTo(0, document.body.scrollHeight)')
     time.sleep(1)
 
+
+def obter_elementos(driver: webdriver.Chrome) -> list:
+    """Retorna lista de WebElements do <body>"""
+    return driver.find_elements(By.XPATH, "//body//*")
+
+
+def montar_info_elemento(driver: webdriver.Chrome, elemento) -> dict:
+    """Monta dict com atributos e XPath de um WebElement"""
+    info = {
+        'tag':        elemento.tag_name,
+        'id':         elemento.get_attribute('id') or '',
+        'class':      elemento.get_attribute('class') or '',
+        'text':       elemento.text.strip(),
+        'name':       elemento.get_attribute('name') or '',
+        'type':       elemento.get_attribute('type') or '',
+        'aria_label': elemento.get_attribute('aria-label') or '',
+        'xpath':      driver.execute_script(GET_XPATH_JS, elemento),
+    }
+    dados = driver.execute_script(GET_DATA_ATTRS_JS, elemento)
+    info.update(dados)
+    return info
+
+
 def obter_xpath(driver: webdriver.Chrome, elemento) -> str:
-    # Executa o snippet JS para obter o XPath absoluto
+    """Retorna o XPath absoluto de um elemento via JS"""
     return driver.execute_script(GET_XPATH_JS, elemento)
 
-def extrair_elementos_dom(url: str) -> list:
-    # Extrai todos os elementos do <body> e retorna lista de dicionários
-    driver = criar_driver()
+
+def extrair_snapshot(url: str, driver=None) -> list:
+    """
+    Extrai snapshot do DOM de uma URL.
+    Se driver for fornecido, reutiliza; caso contrário, instancia um novo.
+    Retorna lista de dicts com info de cada elemento em <body>.
+    """
+    possui_driver = driver is not None
+    drv = driver or criar_driver()
     try:
-        carregar_pagina(driver, url)
-        elementos = driver.find_elements(By.XPATH, "//body//*")
-        resultados = []
-        for el in elementos:
-            info = {
-                'tag':         el.tag_name,
-                'id':          el.get_attribute('id') or '',
-                'class':       el.get_attribute('class') or '',
-                'text':        el.text.strip(),
-                'name':        el.get_attribute('name') or '',
-                'type':        el.get_attribute('type') or '',
-                'aria_label':  el.get_attribute('aria-label') or '',
-                'xpath':       obter_xpath(driver, el)
-            }
-            # Extrai todos os atributos data-* e adiciona ao dicionário
-            data_attrs = driver.execute_script(GET_DATA_ATTRS_JS, el)
-            info.update(data_attrs)
-            resultados.append(info)
-        return resultados
+        carregar_pagina(drv, url)
+        elementos = obter_elementos(drv)
+        return [montar_info_elemento(drv, el) for el in elementos]
     finally:
-        driver.quit()
+        if not possui_driver:
+            drv.quit()
