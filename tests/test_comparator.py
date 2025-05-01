@@ -4,8 +4,6 @@ import json
 import pytest
 from pathlib import Path
 
-# Ajuste este import conforme sua estrutura de pastas:
-# from core.comparator import ler_snapshot, gerar_diferencas
 from self_healing.core.comparator import ler_snapshot, gerar_diferencas
 
 
