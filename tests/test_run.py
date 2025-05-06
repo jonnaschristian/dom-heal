@@ -1,7 +1,7 @@
 # Suíte de testes unitários para run.py: valida formatação do resumo de diff via a função resumir_diff
 
 import pytest
-from run import resumir_diff
+from self_healing.runner import resumir_diff
 
 # Caso de Teste: Resumo com todas as listas vazias deve mostrar zeros
 def test_resumir_diff_zero():

@@ -1,4 +1,3 @@
-# extractor.py
 # Biblioteca de extração de elementos do DOM via Selenium: coleta atributos e XPath de cada nó
 
 import time

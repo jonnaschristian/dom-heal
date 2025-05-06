@@ -8,8 +8,8 @@ from pathlib import Path
 from threading import Thread
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 
-from self_healing.core.extractor import criar_driver, carregar_pagina, obter_xpath, GET_DATA_ATTRS_JS
-from self_healing.core.comparator import gerar_diferencas, ler_snapshot
+from self_healing.extractor import criar_driver, carregar_pagina, obter_xpath, GET_DATA_ATTRS_JS
+from self_healing.comparator import gerar_diferencas, ler_snapshot
 from selenium.webdriver.common.by import By
 
 # Suprime logs de TensorFlow Lite
