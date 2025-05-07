@@ -1,39 +1,36 @@
-# Orquestra servidor local, captura snapshots T0/T1, gera diff.json e imprime resumo de alterações
-
+"""
+Módulo runner: orquestra a captura de snapshots T0/T1, gera diff.json e aplica execução principal do self-healing.
+"""
 import os
-import sys
 import time
 import json
 from pathlib import Path
 from threading import Thread
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 
-from self_healing.extractor import criar_driver, carregar_pagina, obter_xpath, GET_DATA_ATTRS_JS
-from self_healing.comparator import gerar_diferencas, ler_snapshot
-from selenium.webdriver.common.by import By
-
-# Suprime logs de TensorFlow Lite
+# Suprime logs de TensorFlow Lite para não poluir a saída
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 os.environ['TF_CPP_MIN_VLOG_LEVEL'] = '3'
 
-class FilteredWriter:
-    def __init__(self, orig):
-        self.orig = orig
-    def write(self, text):
-        if 'TensorFlow Lite' in text:
-            return
-        self.orig.write(text)
-    def flush(self):
-        self.orig.flush()
+# Silencia logs HTTP do servidor
+for fn in ("log_request", "log_error", "log_message"):
+    setattr(SimpleHTTPRequestHandler, fn, lambda *args, **kwargs: None)
+HTTPServer.handle_error = lambda self, request, client_address: None
 
-sys.stdout = FilteredWriter(sys.stdout)
-sys.stderr = FilteredWriter(sys.stderr)
+from dom_heal.extractor import criar_driver, carregar_pagina, obter_xpath, GET_DATA_ATTRS_JS
+from dom_heal.comparator import gerar_diferencas, ler_snapshot
+from selenium.webdriver.common.by import By
 
 
 def resumir_diff(ordered: dict) -> str:
     """
-    Gera uma string de resumo:
-    'Adicionado: X, Removido: Y, Alterado: Z, Movido: W'
+    Gera um resumo das diferenças encontradas no diff.json.
+
+    Args:
+        ordered (dict): Dicionário com chaves 'Adicionado', 'Removido', 'Alterado', 'Movido'.
+
+    Returns:
+        str: String formatada como 'Adicionado: X, Removido: Y, Alterado: Z, Movido: W'.
     """
     return (
         f"Adicionado: {len(ordered['Adicionado'])}, "
@@ -44,36 +41,32 @@ def resumir_diff(ordered: dict) -> str:
 
 
 def main():
-    # Configurações
+    """
+    Fluxo principal:
+      1. Inicia servidor HTTP silencioso para servir arquivos locais.
+      2. Captura snapshot T0 do DOM.
+      3. Aguarda intervalo configurado.
+      4. Captura snapshot T1 do DOM.
+      5. Gera e grava diff.json com diferenças entre T0 e T1.
+      6. Imprime resumo das alterações.
+    """
     PORTA = 8000
     INTERVALO = 10  # segundos entre T0 e T1
     DIRETORIO_DADOS = Path(__file__).parent / 'data'
     DIRETORIO_DADOS.mkdir(exist_ok=True)
     URL = f'http://localhost:{PORTA}/index.html'
 
-    class QuietHandler(SimpleHTTPRequestHandler):
-        def log_request(self, *args): pass
-        def log_error(self, *args): pass
-        def log_message(self, *args): pass
-        def do_GET(self):
-            try: super().do_GET()
-            except ConnectionResetError: pass
-
-    class QuietHTTPServer(HTTPServer):
-        def handle_error(self, request, client_address):
-            pass
-
-    # Inicia servidor HTTP silencioso em background
+    # Inicia servidor HTTP em background
     Thread(
-        target=lambda: QuietHTTPServer(('localhost', PORTA), QuietHandler).serve_forever(),
+        target=lambda: HTTPServer(('localhost', PORTA), SimpleHTTPRequestHandler).serve_forever(),
         daemon=True
     ).start()
 
-    # 1) Inicializa driver e carrega página
+    # Inicializa driver e carrega página
     driver = criar_driver()
     carregar_pagina(driver, URL)
 
-    # 2) Captura snapshot T0
+    # Captura snapshot T0
     snapshot_t0 = []
     for el in driver.find_elements(By.XPATH, "//body//*"):
         info = {
@@ -86,7 +79,6 @@ def main():
             'aria_label': el.get_attribute('aria-label') or '',
             'xpath':      obter_xpath(driver, el)
         }
-        # extrai atributos data-* dinamicamente
         data_attrs = driver.execute_script(GET_DATA_ATTRS_JS, el)
         info.update(data_attrs)
         snapshot_t0.append(info)
@@ -95,10 +87,10 @@ def main():
         json.dumps(snapshot_t0, ensure_ascii=False, indent=2), encoding='utf-8'
     )
 
-    # 3) Espera o INTERVALO
+    # Espera o intervalo
     time.sleep(INTERVALO)
 
-    # 4) Captura snapshot T1
+    # Captura snapshot T1
     snapshot_t1 = []
     for el in driver.find_elements(By.XPATH, "//body//*"):
         info = {
@@ -122,7 +114,7 @@ def main():
     # Fecha o driver
     driver.quit()
 
-    # 5) Gera diff e grava
+    # Gera diff e grava
     raw = gerar_diferencas(
         ler_snapshot(DIRETORIO_DADOS / 't0.json'),
         ler_snapshot(DIRETORIO_DADOS / 't1.json')
@@ -137,9 +129,8 @@ def main():
         json.dumps(ordered, ensure_ascii=False, indent=2), encoding='utf-8'
     )
 
-    # 6) Resumo
+    # Imprime resumo
     print(resumir_diff(ordered))
-
 
 if __name__ == "__main__":
     main()

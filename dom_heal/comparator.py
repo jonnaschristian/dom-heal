@@ -1,4 +1,6 @@
-# Biblioteca de comparação de snapshots de DOM com detecção de adições, remoções, movimentos (ID/fuzzy) e alterações
+"""
+Módulo comparator: funções para ler snapshots de DOM e gerar diferenças entre eles.
+"""
 
 import json
 from pathlib import Path
@@ -11,6 +13,15 @@ LIMIAR_PADRAO = 0.7
 
 
 def ler_snapshot(caminho: Path) -> list:
+    """
+    Lê um arquivo JSON contendo um snapshot do DOM e retorna uma lista de elementos.
+
+    Args:
+        caminho (Path): Caminho para o arquivo JSON do snapshot.
+
+    Returns:
+        list: Lista de dicionários representando elementos; vazia se falhar ao ler/parsing.
+    """
     try:
         return json.loads(caminho.read_text(encoding='utf-8'))
     except Exception:
@@ -24,12 +35,21 @@ def gerar_diferencas(
     limiar: float = None
 ) -> dict:
     """
-    Compara dois snapshots (listas de dicts) e devolve:
-      - movidos: ID e fuzzy  
-      - removidos: XPaths que sumiram  
-      - adicionados: XPaths que apareceram  
-      - alterados: mesmoxpath mas com diffs de atributo  
-    Mantém ordem hierárquica de removidos/adicionados.
+    Compara dois snapshots (listas de dicionários) e retorna as diferenças estruturais:
+
+      - movidos: elementos que mudaram de XPath por ID ou similaridade fuzzy
+      - removidos: XPaths que existiam em 'antes' e sumiram em 'depois'
+      - adicionados: XPaths novos em 'depois'
+      - alterados: mesmos XPaths com mudanças em atributos
+
+    Args:
+        antes (list): Snapshot inicial (t0) como lista de dicionários.
+        depois (list): Snapshot posterior (t1) como lista de dicionários.
+        atributos (list, optional): Lista de atributos a considerar; usa ATRIBUTOS_PADRAO se None.
+        limiar (float, optional): Limiar para comparação fuzzy (0.0 a 1.0); usa LIMIAR_PADRAO se None.
+
+    Returns:
+        dict: Estrutura com chaves 'movidos', 'removidos', 'adicionados', 'alterados'.
     """
 
     # 1) Defaults
@@ -52,7 +72,7 @@ def gerar_diferencas(
     adicionados = set(mapa_depois) - set(mapa_antes)
     movidos     = []
 
-    # 5) Detecta movimento POR ID
+    # 5) Detecta movimento por ID
     ids_antes  = {el['id']: xp for xp, el in mapa_antes.items()  if el.get('id')}
     ids_depois = {el['id']: xp for xp, el in mapa_depois.items() if el.get('id')}
     for id_valor, xp_antes in ids_antes.items():
@@ -77,7 +97,7 @@ def gerar_diferencas(
                 adicionados.discard(xp_depois)
                 break
 
-    # 7) Detecta ALTERAÇÕES de atributos
+    # 7) Detecta alterações de atributos
     alterados = []
     for xp in set(mapa_antes) & set(mapa_depois):
         diffs = {}
