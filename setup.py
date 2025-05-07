@@ -1,19 +1,23 @@
 from setuptools import setup, find_packages
 
 setup(
-    name='self_healing',
-    version='0.1.0',
-    description='Motor de Self-Healing para testes funcionais automatizados',
-    author='Jonnas Christian Sousa de Paiva',
-    packages=find_packages(),
-    install_requires=[
-        'rapidfuzz>=3.13.0',        # fuzzy matching de alta performance
-        'selenium>=4.29.0',         # captura de snapshots via Selenium
-        'webdriver-manager>=4.0.2'  # gerencia drivers do navegador
+    name="dom-heal",                # nome do pacote no PyPI
+    version="0.1.0",                # versão inicial
+    description="Auto-recuperação de seletores DOM para testes web",
+    author="Jonnas Christian Sousa de Paiva",
+    author_email="jonnaschristian@gmail.com",
+    url="https://github.com/jonnaschristian/dom-heal",
+    packages=find_packages(),       # encontra automaticamente dom_heal/
+    python_requires=">=3.7",
+    install_requires=[              # dependências de runtime
+        "rapidfuzz>=3.13.0",
+        "selenium>=4.29.0",
+        "webdriver-manager>=4.0.2",
     ],
-    entry_points={
-        'console_scripts': [
-            'extrair-dom = self_healing.core.extractor:extrair_elementos_dom'
+    extras_require={                # dependências só para desenvolvimento
+        "dev": [
+            "pytest>=8.0.0",
+            "python-dotenv>=1.0.0",
         ]
     },
 )

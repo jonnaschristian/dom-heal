@@ -1,5 +1,6 @@
-# extractor.py
-# Biblioteca de extração de elementos do DOM via Selenium: coleta atributos e XPath de cada nó
+"""
+Módulo extractor: extrai snapshots do DOM via Selenium e fornece utilitários para cálculo de XPath e coleta de atributos.
+"""
 
 import time
 from selenium import webdriver
@@ -39,7 +40,12 @@ return result;
 
 
 def criar_driver() -> webdriver.Chrome:
-    """Configura e retorna instância headless do Chrome"""
+    """
+    Configura e retorna instância headless do Chrome para extração.
+
+    Returns:
+        webdriver.Chrome: Driver Chrome configurado em modo headless.
+    """
     opcoes = webdriver.ChromeOptions()
     opcoes.add_argument('--headless')
     opcoes.add_argument('--disable-gpu')
@@ -50,7 +56,14 @@ def criar_driver() -> webdriver.Chrome:
 
 
 def carregar_pagina(driver: webdriver.Chrome, url: str, timeout: int = 10):
-    """Carrega página e aguarda readyState == 'complete'"""
+    """
+    Carrega a página fornecida e aguarda até que o document.readyState seja 'complete'.
+
+    Args:
+        driver (webdriver.Chrome): Instância do Chrome a ser usada.
+        url (str): URL da página a carregar.
+        timeout (int, optional): Tempo máximo de espera em segundos. Defaults to 10.
+    """
     driver.get(url)
     WebDriverWait(driver, timeout).until(
         lambda drv: drv.execute_script("return document.readyState") == 'complete'
@@ -60,12 +73,29 @@ def carregar_pagina(driver: webdriver.Chrome, url: str, timeout: int = 10):
 
 
 def obter_elementos(driver: webdriver.Chrome) -> list:
-    """Retorna lista de WebElements do <body>"""
+    """
+    Retorna todos os elementos WebElements presentes dentro de <body>.
+
+    Args:
+        driver (webdriver.Chrome): Driver Chrome ativo.
+
+    Returns:
+        list: Lista de WebElements encontrados.
+    """
     return driver.find_elements(By.XPATH, "//body//*")
 
 
 def montar_info_elemento(driver: webdriver.Chrome, elemento) -> dict:
-    """Monta dict com atributos e XPath de um WebElement"""
+    """
+    Extrai atributos principais e o XPath absoluto de um WebElement.
+
+    Args:
+        driver (webdriver.Chrome): Driver Chrome ativo.
+        elemento (WebElement): Elemento do DOM a ser processado.
+
+    Returns:
+        dict: Dicionário contendo tag, id, class, text, name, type, aria_label e xpath, além de data-attributes.
+    """
     info = {
         'tag':        elemento.tag_name,
         'id':         elemento.get_attribute('id') or '',
@@ -82,15 +112,31 @@ def montar_info_elemento(driver: webdriver.Chrome, elemento) -> dict:
 
 
 def obter_xpath(driver: webdriver.Chrome, elemento) -> str:
-    """Retorna o XPath absoluto de um elemento via JS"""
+    """
+    Calcula e retorna o XPath absoluto de um elemento via JavaScript.
+
+    Args:
+        driver (webdriver.Chrome): Driver Chrome ativo.
+        elemento (WebElement): Elemento do DOM.
+
+    Returns:
+        str: XPath absoluto.
+    """
     return driver.execute_script(GET_XPATH_JS, elemento)
 
 
 def extrair_snapshot(url: str, driver=None) -> list:
     """
-    Extrai snapshot do DOM de uma URL.
-    Se driver for fornecido, reutiliza; caso contrário, instancia um novo.
-    Retorna lista de dicts com info de cada elemento em <body>.
+    Extrai um snapshot do DOM de uma URL e retorna como lista de dicionários.
+
+    Se driver for fornecido, reutiliza a instância; caso contrário, cria uma nova.
+
+    Args:
+        url (str): URL da página a extrair.
+        driver (webdriver.Chrome, optional): Instância existente de Chrome.
+
+    Returns:
+        list: Lista de dicionários com informações dos elementos em <body>.
     """
     possui_driver = driver is not None
     drv = driver or criar_driver()

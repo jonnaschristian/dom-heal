@@ -4,7 +4,7 @@ import json
 import pytest
 from pathlib import Path
 
-from self_healing.core.comparator import ler_snapshot, gerar_diferencas
+from dom_heal.comparator import ler_snapshot, gerar_diferencas
 
 
 # Caso de Teste: Ler snapshot com JSON válido deve retornar lista
