@@ -10,7 +10,7 @@ from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 
 # Snippet JavaScript para cálculo do XPath absoluto
-GET_XPATH_JS = """
+JS_OBTER_XPATH = """
 function absoluteXPath(el){
     var segs = [];
     for (; el && el.nodeType==1; el=el.parentNode){
@@ -25,7 +25,7 @@ return absoluteXPath(arguments[0]);
 """
 
 # Snippet JavaScript para extrair atributos data-* dinamicamente
-GET_DATA_ATTRS_JS = """
+JS_OBTER_DATA_ATTRS = """
 var attrs = arguments[0].attributes;
 var result = {};
 for (var i = 0; i < attrs.length; i++) {
@@ -38,13 +38,9 @@ for (var i = 0; i < attrs.length; i++) {
 return result;
 """
 
-
 def criar_driver() -> webdriver.Chrome:
     """
-    Configura e retorna instância headless do Chrome para extração.
-
-    Returns:
-        webdriver.Chrome: Driver Chrome configurado em modo headless.
+    Configura e retorna uma instância headless do Chrome para extração.
     """
     opcoes = webdriver.ChromeOptions()
     opcoes.add_argument('--headless')
@@ -54,46 +50,43 @@ def criar_driver() -> webdriver.Chrome:
     servico = Service(ChromeDriverManager().install())
     return webdriver.Chrome(service=servico, options=opcoes)
 
-
-def carregar_pagina(driver: webdriver.Chrome, url: str, timeout: int = 10):
+def carregar_pagina(driver: webdriver.Chrome, url: str, tempo_max: int = 10):
     """
     Carrega a página fornecida e aguarda até que o document.readyState seja 'complete'.
 
-    Args:
+    Parâmetros:
         driver (webdriver.Chrome): Instância do Chrome a ser usada.
         url (str): URL da página a carregar.
-        timeout (int, optional): Tempo máximo de espera em segundos. Defaults to 10.
+        tempo_max (int, opcional): Tempo máximo de espera em segundos. Padrão: 10.
     """
     driver.get(url)
-    WebDriverWait(driver, timeout).until(
+    WebDriverWait(driver, tempo_max).until(
         lambda drv: drv.execute_script("return document.readyState") == 'complete'
     )
     driver.execute_script('window.scrollTo(0, document.body.scrollHeight)')
     time.sleep(1)
 
-
 def obter_elementos(driver: webdriver.Chrome) -> list:
     """
     Retorna todos os elementos WebElements presentes dentro de <body>.
 
-    Args:
+    Parâmetros:
         driver (webdriver.Chrome): Driver Chrome ativo.
 
-    Returns:
+    Retorna:
         list: Lista de WebElements encontrados.
     """
     return driver.find_elements(By.XPATH, "//body//*")
-
 
 def montar_info_elemento(driver: webdriver.Chrome, elemento) -> dict:
     """
     Extrai atributos principais e o XPath absoluto de um WebElement.
 
-    Args:
+    Parâmetros:
         driver (webdriver.Chrome): Driver Chrome ativo.
         elemento (WebElement): Elemento do DOM a ser processado.
 
-    Returns:
+    Retorna:
         dict: Dicionário contendo tag, id, class, text, name, type, aria_label e xpath, além de data-attributes.
     """
     info = {
@@ -104,26 +97,24 @@ def montar_info_elemento(driver: webdriver.Chrome, elemento) -> dict:
         'name':       elemento.get_attribute('name') or '',
         'type':       elemento.get_attribute('type') or '',
         'aria_label': elemento.get_attribute('aria-label') or '',
-        'xpath':      driver.execute_script(GET_XPATH_JS, elemento),
+        'xpath':      driver.execute_script(JS_OBTER_XPATH, elemento),
     }
-    dados = driver.execute_script(GET_DATA_ATTRS_JS, elemento)
+    dados = driver.execute_script(JS_OBTER_DATA_ATTRS, elemento)
     info.update(dados)
     return info
-
 
 def obter_xpath(driver: webdriver.Chrome, elemento) -> str:
     """
     Calcula e retorna o XPath absoluto de um elemento via JavaScript.
 
-    Args:
+    Parâmetros:
         driver (webdriver.Chrome): Driver Chrome ativo.
         elemento (WebElement): Elemento do DOM.
 
-    Returns:
+    Retorna:
         str: XPath absoluto.
     """
-    return driver.execute_script(GET_XPATH_JS, elemento)
-
+    return driver.execute_script(JS_OBTER_XPATH, elemento)
 
 def extrair_snapshot(url: str, driver=None) -> list:
     """
@@ -131,11 +122,11 @@ def extrair_snapshot(url: str, driver=None) -> list:
 
     Se driver for fornecido, reutiliza a instância; caso contrário, cria uma nova.
 
-    Args:
+    Parâmetros:
         url (str): URL da página a extrair.
-        driver (webdriver.Chrome, optional): Instância existente de Chrome.
+        driver (webdriver.Chrome, opcional): Instância existente de Chrome.
 
-    Returns:
+    Retorna:
         list: Lista de dicionários com informações dos elementos em <body>.
     """
     possui_driver = driver is not None

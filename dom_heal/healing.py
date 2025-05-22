@@ -1,31 +1,46 @@
+"""
+Módulo healing: responsável por atualizar o arquivo de seletores com base nas diferenças detectadas.
+Aplica automaticamente adições, remoções, alterações e movimentações de elementos conforme o diff gerado, garantindo a manutenção dos seletores mais atuais e funcionais.
+"""
+
 import json
 from pathlib import Path
 from typing import Any, Dict
 
-
-def atualizar_selectors(diffs: Dict[str, Any]) -> None:
+def atualizar_seletores(diferencas: Dict[str, Any], caminho_seletores: Path) -> None:
     """
-    Atualiza o arquivo selectors.json com base nas diferenças geradas pelo diff:
-      1. Carrega selectors.json na raiz do projeto.
-      2. Para cada entrada em `diffs`, aplica a atualização necessária nos seletores.
-      3. Grava o arquivo selectors.json corrigido.
+    Atualiza o arquivo de seletores com base nas diferenças detectadas.
+    Suporta adição, remoção, alteração e movimentação de elementos pelo XPath.
     """
-    selectors_path = Path.cwd() / 'selectors.json'
-    if not selectors_path.exists():
-        raise FileNotFoundError(f"Arquivo selectors.json não encontrado em {selectors_path}")
+    if not caminho_seletores.exists():
+        raise FileNotFoundError(f"Arquivo de seletores não encontrado em {caminho_seletores}")
 
-    # 1) Carrega selectors existentes
-    with selectors_path.open('r', encoding='utf-8') as f:
-        selectors: Dict[str, Any] = json.load(f)
+    with caminho_seletores.open('r', encoding='utf-8') as arquivo:
+        seletores: Dict[str, Any] = json.load(arquivo)
 
-    # 2) Lógica de healing (exemplo simplificado)
-    # TODO: implementar a lógica real de substituição de seletores
-    for diff in diffs.get('moved', []):
-        old_sel = diff.get('old_selector')
-        new_sel = diff.get('new_selector')
-        if old_sel in selectors:
-            selectors[old_sel] = new_sel
+    # Adicionados
+    for xpath in diferencas.get('adicionados', []):
+        if xpath not in seletores:
+            seletores[xpath] = {}
 
-    # 3) Grava selectors atualizados
-    with selectors_path.open('w', encoding='utf-8') as f:
-        json.dump(selectors, f, ensure_ascii=False, indent=2)
+    # Removidos
+    for xpath in diferencas.get('removidos', []):
+        seletores.pop(xpath, None)
+
+    # Alterados
+    for alterado in diferencas.get('alterados', []):
+        xpath = alterado.get('xpath')
+        mudancas = alterado.get('diferencas', {})
+        if xpath in seletores:
+            for atributo, valor in mudancas.items():
+                seletores[xpath][atributo] = valor['depois']
+
+    # Movidos
+    for movido in diferencas.get('movidos', []):
+        xpath_antigo = movido.get('de')
+        xpath_novo = movido.get('para')
+        if xpath_antigo in seletores:
+            seletores[xpath_novo] = seletores.pop(xpath_antigo)
+
+    with caminho_seletores.open('w', encoding='utf-8') as arquivo:
+        json.dump(seletores, arquivo, ensure_ascii=False, indent=2)

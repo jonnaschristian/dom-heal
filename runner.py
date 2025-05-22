@@ -1,3 +1,10 @@
+"""
+Arquivo utilitário para execuções manuais e testes rápidos.
+NÃO faz parte do pacote oficial dom_heal.
+Use o CLI para integração real.
+"""
+
+
 from pathlib import Path
 import json
 from typing import Any, Dict

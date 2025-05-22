@@ -1,71 +1,76 @@
+"""
+Módulo engine: orquestra o fluxo principal de self-healing.
+Gerencia extração dos snapshots do DOM, comparação de versões, atualização automática do arquivo de seletores e geração dos logs detalhados de alterações.
+"""
+
 from pathlib import Path
 import json
 from typing import Any, Dict
 from dom_heal.extractor import extrair_snapshot
 from dom_heal.comparator import gerar_diferencas
+from dom_heal.healing import atualizar_seletores
 
 # Diretórios base (raiz do projeto)
-BASE_DIR = Path.cwd()
-SNAPSHOTS_DIR = BASE_DIR / 'snapshots'
-DIFFS_DIR    = BASE_DIR / 'diffs'
+DIRETORIO_BASE = Path.cwd()
+DIRETORIO_SNAPSHOTS = DIRETORIO_BASE / 'snapshots'
+DIRETORIO_DIFFS = DIRETORIO_BASE / 'diffs'
 
-# Cache temporário de snapshots T0
-_snapshot_cache: Dict[str, Any] = {}
+def gravar_json(caminho: Path, dados: Any) -> None:
+    """Cria diretórios necessários e grava `dados` como JSON em `caminho`."""
+    caminho.parent.mkdir(parents=True, exist_ok=True)
+    caminho.write_text(json.dumps(dados, ensure_ascii=False, indent=2), encoding='utf-8')
 
-
-def _write_json(path: Path, data: Any) -> None:
-    """Cria diretórios necessários e grava `data` como JSON em `path`."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding='utf-8')
-
-
-def iniciar_snapshot(tela: str) -> None:
+def salvar_diff_alterados(diferencas: dict, caminho_seletores: Path):
     """
-    Captura o estado atual do DOM (T0) para a etapa `tela` e armazena em cache.
+    Salva apenas as alterações detectadas em um novo JSON no mesmo diretório do arquivo original de seletores.
     """
-    _snapshot_cache[tela] = extrair_snapshot(tela)
+    caminho_alterados = caminho_seletores.parent / "ElementosAlterados.json"
+    resumo = {k: v for k, v in diferencas.items() if v}
+    if resumo:
+        with caminho_alterados.open("w", encoding="utf-8") as arquivo:
+            json.dump(resumo, arquivo, ensure_ascii=False, indent=2)
 
-
-def concluir_com_sucesso(tela: str) -> None:
+def self_heal(caminho_json: str, url: str) -> Dict[str, Any]:
     """
-    Grava o snapshot T0 no diretório de snapshots e limpa o cache.
+    Fluxo externo de self-healing:
+      1. Extrai snapshot atual do DOM da URL (T1)
+      2. Carrega snapshot baseline salvo (T0) do diretório snapshots/
+      3. Compara T0 e T1, gera diferencas
+      4. Atualiza JSON de seletores com as sugestões (healing)
+      5. Gera log das alterações detalhadas no mesmo diretório do JSON original
+      6. Gera log geral das alterações no diretório diffs/
     """
-    try:
-        snapshot = _snapshot_cache.pop(tela)
-    except KeyError:
-        raise ValueError(f"Snapshot não iniciado para '{tela}'")
-    _write_json(SNAPSHOTS_DIR / f"{tela}.json", snapshot)
+    caminho_json = Path(caminho_json)
+    id_url = (caminho_json.stem or "pagina").replace(" ", "_").replace(".", "_")
+    caminho_snapshot = DIRETORIO_SNAPSHOTS / f"{id_url}.json"
+    caminho_diff = DIRETORIO_DIFFS / f"{id_url}_diff.json"
 
+    # 1. Extrai snapshot T1
+    t1 = extrair_snapshot(url)
 
-def tratar_falha(tela: str, framework: str = 'cypress') -> None:
-    """
-    Em caso de falha na etapa `tela`:
-    1) Captura T1 (novo snapshot)
-    2) Lê T0 oficial de disco
-    3) Calcula diffs entre T0 e T1
-    4) Grava diffs em arquivo e:
-       - se `cypress`, chama a lógica de healing para atualizar seletores;
-       - caso contrário, gera relatorio_sugestoes.json.
-    """
-    # 1) T1
-    t1 = extrair_snapshot(tela)
+    # 2. Carrega baseline (T0)
+    if not caminho_snapshot.exists():
+        # Primeira execução: salva baseline e retorna
+        gravar_json(caminho_snapshot, t1)
+        return {"msg": f"Baseline salvo em {caminho_snapshot}. Rode novamente para self-healing."}
 
-    # 2) T0 do disco
-    t0_file = SNAPSHOTS_DIR / f"{tela}.json"
-    if not t0_file.exists():
-        raise FileNotFoundError(f"Snapshot oficial não encontrado: {t0_file}")
-    t0 = json.loads(t0_file.read_text(encoding='utf-8'))
+    t0 = json.loads(caminho_snapshot.read_text(encoding="utf-8"))
 
-    # 3) diffs
-    diffs = gerar_diferencas(t0, t1)
+    # 3. Compara
+    diferencas = gerar_diferencas(t0, t1)
 
-    # 4a) grava diffs
-    _write_json(DIFFS_DIR / f"{tela}_diff.json", diffs)
+    # 4. Atualiza seletores com as sugestões de healing
+    atualizar_seletores(diferencas, caminho_json)
 
-    # 4b) atualiza ou sugere
-    if framework.lower() == 'cypress':
-        from dom_heal.healing import atualizar_selectors
-        atualizar_selectors(diffs)
-    else:
-        report = {'suggestions': diffs}
-        _write_json(BASE_DIR / 'relatorio_sugestoes.json', report)
+    # 5. Salva log detalhado no mesmo diretório do JSON original
+    salvar_diff_alterados(diferencas, caminho_json)
+
+    # 6. Salva log geral no diretório diffs/
+    gravar_json(caminho_diff, diferencas)
+
+    return {
+        "msg": "Self-healing finalizado.",
+        "log_detalhado": str(caminho_json.parent / "ElementosAlterados.json"),
+        "diff_log": str(caminho_diff),
+        "json_atualizado": str(caminho_json)
+    }
