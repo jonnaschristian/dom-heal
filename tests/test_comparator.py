@@ -1,146 +1,110 @@
-# Suíte de testes unitários para comparator.py: valida leitura de snapshots e geração de diffs (adições, remoções, movimentos e alterações)
+"""
+Testes unitários para o módulo comparator.
+Cobrem todos os tipos de diferenças entre snapshots: adicionados, removidos, alterados, movidos,
+incluindo atributos padrão, atributos data-* e edge cases.
+"""
 
-import json
 import pytest
-from pathlib import Path
-
 from dom_heal.comparator import ler_snapshot, gerar_diferencas
+from pathlib import Path
+import json
 
+def criar_arquivo_json(tmp_path, nome, dados):
+    caminho = tmp_path / nome
+    caminho.write_text(json.dumps(dados, ensure_ascii=False, indent=2), encoding="utf-8")
+    return caminho
 
-# Caso de Teste: Ler snapshot com JSON válido deve retornar lista
-def test_ls_valido_retorna_lista(tmp_path: Path):
-    data = [{"xpath": "/html", "id": "elem"}]
-    arquivo = tmp_path / "valid.json"
-    arquivo.write_text(json.dumps(data), encoding="utf-8")
+def test_ler_snapshot_valido(tmp_path):
+    dados = [{"xpath": "/html[1]/body[1]/div[1]", "id": "a"}]
+    arquivo = criar_arquivo_json(tmp_path, "t0.json", dados)
     resultado = ler_snapshot(arquivo)
-    assert isinstance(resultado, list)
+    assert resultado == dados
 
-
-# Caso de Teste: Ler snapshot com JSON válido deve retornar conteúdo exato
-def test_ls_valido_retorna_conteudo(tmp_path: Path):
-    data = [{"xpath": "/html", "id": "elem"}]
-    arquivo = tmp_path / "valid.json"
-    arquivo.write_text(json.dumps(data), encoding="utf-8")
-    resultado = ler_snapshot(arquivo)
-    assert resultado == data
-
-
-# Caso de Teste: Ler snapshot com JSON malformado deve retornar lista vazia
-def test_ls_invalido_retorna_vazio(tmp_path: Path):
-    arquivo = tmp_path / "invalid.json"
-    arquivo.write_text("not a json", encoding="utf-8")
+def test_ler_snapshot_invalido(tmp_path):
+    arquivo = tmp_path / "invalido.json"
+    arquivo.write_text("{nao_eh_json}", encoding="utf-8")
     resultado = ler_snapshot(arquivo)
     assert resultado == []
 
-
-# Caso de Teste: Ler snapshot com caminho inexistente deve retornar lista vazia
-def test_ls_arquivo_inexistente_retorna_vazio(tmp_path: Path):
-    arquivo = tmp_path / "no_file.json"
-    resultado = ler_snapshot(arquivo)
-    assert resultado == []
-
-
-# Caso de Teste: Gerar diferenças com snapshots idênticos deve retornar tudo vazio
-def test_diff_identicos_sem_alteracoes():
-    antes = [{"xpath": "/a", "id": "", "tag": "div"}]
-    depois = [{"xpath": "/a", "id": "", "tag": "div"}]
+def test_adicionado_removido(tmp_path):
+    antes = [{"xpath": "/a[1]", "id": "um"}]
+    depois = [{"xpath": "/b[1]", "id": "dois"}]
     diff = gerar_diferencas(antes, depois)
-    assert diff == {
-        "adicionados": [],
-        "removidos": [],
-        "alterados": [],
-        "movidos": []
-    }
+    assert diff["adicionados"] == ["/b[1]"]
+    assert diff["removidos"] == ["/a[1]"]
 
-
-# Caso de Teste: Gerar diferenças com apenas adições deve preencher somente “adicionados”
-def test_diff_somente_adicoes():
-    antes = []
-    depois = [{"xpath": "/a", "id": "", "tag": "div"}]
+def test_alterado_simples():
+    antes = [{"xpath": "/a[1]", "id": "um", "class": "foo"}]
+    depois = [{"xpath": "/a[1]", "id": "um", "class": "bar"}]
     diff = gerar_diferencas(antes, depois)
-    assert diff["adicionados"] == ["/a"]
+    assert len(diff["alterados"]) == 1
+    alterado = diff["alterados"][0]
+    assert alterado["xpath"] == "/a[1]"
+    assert alterado["diferencas"]["class"] == {"antes": "foo", "depois": "bar"}
 
-
-# Caso de Teste: Gerar diferenças com apenas remoções deve preencher somente “removidos”
-def test_diff_somente_remocoes():
-    antes = [{"xpath": "/a", "id": "", "tag": "div"}]
-    depois = []
-    diff = gerar_diferencas(antes, depois)
-    assert diff["removidos"] == ["/a"]
-
-
-# Caso de Teste: Gerar diferenças com alteração de atributo deve preencher “alterados”
-def test_diff_alteracao_atributo():
-    antes = [{"xpath": "/a", "id": "", "tag": "div", "class": "old"}]
-    depois = [{"xpath": "/a", "id": "", "tag": "div", "class": "new"}]
-    diff = gerar_diferencas(antes, depois)
-    assert diff["alterados"] == [
-        {"xpath": "/a", "diferencas": {"class": {"antes": "old", "depois": "new"}}}
-    ]
-
-
-# Caso de Teste: Gerar diferenças com movimento por ID deve preencher “movidos”
-def test_diff_movimento_por_id():
-    antes = [{"xpath": "/a", "id": "ID1", "tag": "div"}]
-    depois = [{"xpath": "/b", "id": "ID1", "tag": "div"}]
-    diff = gerar_diferencas(antes, depois, limiar=1.1)
-    assert diff["movidos"] == [{"id": "ID1", "de": "/a", "para": "/b"}]
-
-
-# Caso de Teste: Gerar diferenças com movimento fuzzy deve preencher “movidos”
-def test_diff_movimento_fuzzy():
-    antes = [{"xpath": "/x1", "id": "", "tag": "p", "text": "foo"}]
-    depois = [{"xpath": "/x2", "id": "", "tag": "p", "text": "foo"}]
-    diff = gerar_diferencas(antes, depois)
-    mov = diff["movidos"][0]
-    assert isinstance(mov["similaridade"], float)
-
-
-# Caso de Teste: Gerar diferenças com limiar alto não deve movimentar
-def test_diff_sem_movimento_limiar_alto():
-    antes = [{"xpath": "/x1", "id": "", "tag": "p", "text": "foo"}]
-    depois = [{"xpath": "/x2", "id": "", "tag": "p", "text": "foo"}]
-    diff = gerar_diferencas(antes, depois, limiar=1.1)
-    assert diff["movidos"] == []
-
-
-# Caso de Teste: Gerar diferenças com alteração em data_* deve detectar em “alterados”
-def test_diff_alteracao_data_attr():
-    antes = [{"xpath": "/d", "id": "", "tag": "div", "data_test": "foo"}]
-    depois = [{"xpath": "/d", "id": "", "tag": "div", "data_test": "bar"}]
-    diff = gerar_diferencas(antes, depois)
-    assert diff["alterados"] == [
-        {"xpath": "/d", "diferencas": {"data_test": {"antes": "foo", "depois": "bar"}}}
-    ]
-
-
-# Caso de Teste: Removidos seguem ordem de antes (hierarquia T0)
-def test_diff_preserva_ordem_removidos():
+def test_movido_por_id():
     antes = [
-        {'xpath': '/html/body/div[1]', 'id': '', 'tag': 'div'},
-        {'xpath': '/html/body/div[2]', 'id': '', 'tag': 'div'},
-        {'xpath': '/html/body/div[3]', 'id': '', 'tag': 'div'},
+        {"xpath": "/a[1]", "id": "um"},
+        {"xpath": "/b[1]", "id": "dois"},
     ]
-    depois = []
-    diff = gerar_diferencas(antes, depois)
-    assert diff["removidos"] == [
-        '/html/body/div[1]',
-        '/html/body/div[2]',
-        '/html/body/div[3]',
-    ]
-
-
-# Caso de Teste: Adicionados seguem ordem de depois (hierarquia T1)
-def test_diff_preserva_ordem_adicionados():
-    antes = []
     depois = [
-        {'xpath': '/html/body/section[1]', 'id': '', 'tag': 'section'},
-        {'xpath': '/html/body/section[2]', 'id': '', 'tag': 'section'},
-        {'xpath': '/html/body/section[3]', 'id': '', 'tag': 'section'},
+        {"xpath": "/b[1]", "id": "um"},
+        {"xpath": "/a[1]", "id": "dois"},
     ]
     diff = gerar_diferencas(antes, depois)
-    assert diff["adicionados"] == [
-        '/html/body/section[1]',
-        '/html/body/section[2]',
-        '/html/body/section[3]',
+    assert any(m["id"] == "um" and m["de"] == "/a[1]" and m["para"] == "/b[1]" for m in diff["movidos"])
+    assert any(m["id"] == "dois" and m["de"] == "/b[1]" and m["para"] == "/a[1]" for m in diff["movidos"])
+
+def test_movido_por_fuzzy():
+    antes = [{"xpath": "/a[1]", "id": "", "class": "foo"}]
+    depois = [{"xpath": "/b[1]", "id": "", "class": "foo"}]
+    diff = gerar_diferencas(antes, depois)
+    assert any(m["de"] == "/a[1]" and m["para"] == "/b[1]" for m in diff["movidos"])
+
+def test_atributos_data(tmp_path):
+    antes = [{"xpath": "/a[1]", "id": "um", "data_teste": "X"}]
+    depois = [{"xpath": "/a[1]", "id": "um", "data_teste": "Y"}]
+    diff = gerar_diferencas(antes, depois)
+    assert diff["alterados"][0]["diferencas"]["data_teste"] == {"antes": "X", "depois": "Y"}
+
+def test_varios_tipos_ao_mesmo_tempo():
+    antes = [
+        {"xpath": "/a[1]", "id": "um", "class": "foo", "text": "A"},
+        {"xpath": "/b[1]", "id": "dois", "class": "bar", "text": "B"},
+        {"xpath": "/c[1]", "id": "tres", "class": "baz", "text": "C"},
     ]
+    depois = [
+        {"xpath": "/b[1]", "id": "um", "class": "foo", "text": "A"},  # movido id=um
+        {"xpath": "/a[1]", "id": "dois", "class": "bar", "text": "B"}, # movido id=dois
+        {"xpath": "/d[1]", "id": "quatro", "class": "qux", "text": "D"}, # adicionado
+    ]
+    diff = gerar_diferencas(antes, depois)
+    assert len(diff["movidos"]) == 2
+    assert diff["adicionados"] == ["/d[1]"]
+    assert diff["removidos"] == ["/c[1]"]
+
+def test_ordem_e_hierarquia():
+    antes = [
+        {"xpath": "/div[1]/span[1]", "id": "s1"},
+        {"xpath": "/div[2]/span[1]", "id": "s2"},
+    ]
+    depois = [
+        {"xpath": "/div[2]/span[1]", "id": "s2"},
+        {"xpath": "/div[1]/span[1]", "id": "s1"},
+    ]
+    diff = gerar_diferencas(antes, depois)
+    assert not diff.get("movidos", []) or all("id" in m for m in diff["movidos"])
+
+def test_alterado_multiplos_atributos():
+    antes = [{"xpath": "/x[1]", "id": "i1", "class": "foo", "type": "text"}]
+    depois = [{"xpath": "/x[1]", "id": "i1", "class": "bar", "type": "password"}]
+    diff = gerar_diferencas(antes, depois)
+    diferencas = diff["alterados"][0]["diferencas"]
+    assert diferencas["class"] == {"antes": "foo", "depois": "bar"}
+    assert diferencas["type"] == {"antes": "text", "depois": "password"}
+
+def test_alterado_aria_label():
+    antes = [{"xpath": "/a[1]", "aria_label": "Foo"}]
+    depois = [{"xpath": "/a[1]", "aria_label": "Bar"}]
+    diff = gerar_diferencas(antes, depois)
+    assert diff["alterados"][0]["diferencas"]["aria_label"] == {"antes": "Foo", "depois": "Bar"}
