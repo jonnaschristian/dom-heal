@@ -1,5 +1,6 @@
 """
-Módulo extractor: extrai snapshots do DOM via Selenium e fornece utilitários para cálculo de XPath e coleta de atributos.
+Módulo extractor: extrai o DOM atual de uma página via Selenium e retorna todos os elementos relevantes.
+Independente de baseline/histórico. Pronto para uso externo por mecanismos de self-healing.
 """
 
 import time
@@ -9,7 +10,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 
-# Snippet JavaScript para cálculo do XPath absoluto
+# JS para cálculo do XPath absoluto
 JS_OBTER_XPATH = """
 function absoluteXPath(el){
     var segs = [];
@@ -24,7 +25,7 @@ function absoluteXPath(el){
 return absoluteXPath(arguments[0]);
 """
 
-# Snippet JavaScript para extrair atributos data-* dinamicamente
+# JS para extrair atributos data-* dinamicamente
 JS_OBTER_DATA_ATTRS = """
 var attrs = arguments[0].attributes;
 var result = {};
@@ -87,7 +88,7 @@ def montar_info_elemento(driver: webdriver.Chrome, elemento) -> dict:
         elemento (WebElement): Elemento do DOM a ser processado.
 
     Retorna:
-        dict: Dicionário contendo tag, id, class, text, name, type, aria_label e xpath, além de data-attributes.
+        dict: Dicionário contendo tag, id, class, text, name, type, aria_label, xpath e data-attributes.
     """
     info = {
         'tag':        elemento.tag_name,
@@ -116,11 +117,9 @@ def obter_xpath(driver: webdriver.Chrome, elemento) -> str:
     """
     return driver.execute_script(JS_OBTER_XPATH, elemento)
 
-def extrair_snapshot(url: str, driver=None) -> list:
+def extrair_dom(url: str, driver=None) -> list:
     """
-    Extrai um snapshot do DOM de uma URL e retorna como lista de dicionários.
-
-    Se driver for fornecido, reutiliza a instância; caso contrário, cria uma nova.
+    Extrai o DOM ATUAL da URL informada e retorna como lista de dicionários.
 
     Parâmetros:
         url (str): URL da página a extrair.

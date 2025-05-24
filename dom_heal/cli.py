@@ -1,6 +1,7 @@
 """
-Módulo CLI: executa o self-healing via terminal de forma simples e clara.
-Após instalar a biblioteca, basta rodar: dom-heal --json seletores.json --url https://site.com
+Módulo CLI: executa o self-healing externo via terminal, sem necessidade de baseline.
+Após instalar a biblioteca, basta rodar:
+    dom-heal rodar --json seletores.json --url https://site.com
 """
 
 import typer
@@ -15,7 +16,7 @@ def rodar(
     url: str = typer.Option(..., "--url", "-u", help="URL da página a ser analisada."),
 ):
     """
-    Executa o self-healing: atualiza o JSON de seletores e gera relatório de alterações.
+    Executa o self-healing: atualiza o JSON de seletores e gera relatório de alterações no mesmo diretório.
     """
     resultado = self_heal(str(json), url)
     typer.echo("\n=== Resultado do Self-Healing ===")

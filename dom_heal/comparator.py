@@ -1,5 +1,5 @@
 """
-Módulo de comparação: funções para ler snapshots do DOM e gerar diferenças entre eles.
+Módulo de comparação: funções para ler seletores do JSON antigo e gerar diferenças em relação ao DOM atual da página.
 """
 
 import json
@@ -11,12 +11,12 @@ ATRIBUTOS_PADRAO = ['id', 'class', 'text', 'name', 'type', 'aria_label']
 # Limiar padrão para comparação fuzzy
 LIMIAR_PADRAO = 0.7
 
-def ler_snapshot(caminho: Path) -> list:
+def ler_json_elementos(caminho: Path) -> list:
     """
-    Lê um arquivo JSON contendo um snapshot do DOM e retorna uma lista de elementos.
+    Lê um arquivo JSON contendo os seletores antigos e retorna uma lista de elementos.
     """
     try:
-        return json.loads(caminho.read_text(encoding='utf-8'))
+        return json.loads(Path(caminho).read_text(encoding='utf-8'))
     except Exception:
         return []
 
@@ -27,7 +27,7 @@ def gerar_diferencas(
     limiar: float = None
 ) -> dict:
     """
-    Compara dois snapshots (listas de dicionários) e retorna as diferenças estruturais:
+    Compara o JSON de seletores antigos (antes) com o DOM atual (depois) e retorna as diferenças estruturais:
       - movidos: elementos que mudaram de XPath por ID ou similaridade fuzzy
       - removidos: XPaths que existiam em 'antes' e sumiram em 'depois'
       - adicionados: XPaths novos em 'depois'
