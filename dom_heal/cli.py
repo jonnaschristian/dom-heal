@@ -1,28 +1,54 @@
 """
-Módulo CLI: executa o self-healing via terminal de forma simples e clara.
-Após instalar a biblioteca, basta rodar: dom-heal --json seletores.json --url https://site.com
+CLI
+===
+
+Interface de linha de comando (CLI) para execução do mecanismo de self-healing da biblioteca DOM-Heal.
+
+Após instalar via pip, basta rodar:
+    dom-heal rodar --json <CAMINHO> --url <URL>
+
+Funcionalidades:
+- Executa o self-healing a partir de um JSON de seletores e URL informada
+- Exibe logs detalhados e informações sobre o projeto
 """
 
 import typer
-from pathlib import Path
 from dom_heal.engine import self_heal
 
 app = typer.Typer(help="Executa o self-healing externo da biblioteca dom-heal.")
 
 @app.command()
 def rodar(
-    json: Path = typer.Option(..., "--json", "-j", help="Caminho para o arquivo JSON de seletores."),
+    json: str = typer.Option(..., "--json", "-j", help="Caminho para o arquivo JSON de seletores."),
     url: str = typer.Option(..., "--url", "-u", help="URL da página a ser analisada."),
 ):
     """
-    Executa o self-healing: atualiza o JSON de seletores e gera relatório de alterações.
+    Executa o mecanismo de self-healing, atualizando o JSON de seletores
+    e gerando o relatório de alterações.
+
+    Args:
+        json (str): Caminho para o arquivo de seletores (.json).
+        url (str): URL da página alvo.
     """
-    resultado = self_heal(str(json), url)
-    typer.echo("\n=== Resultado do Self-Healing ===")
-    for chave, valor in resultado.items():
-        typer.echo(f"{chave}: {valor}")
+    try:
+        resultado = self_heal(json, url)
+        typer.secho("✅ Self-healing executado com sucesso!", fg=typer.colors.GREEN)
+        typer.echo(f"📄 Log de alterações: {resultado['log_detalhado']}")
+        typer.echo(f"🗃️ JSON atualizado: {resultado['json_atualizado']}")
+    except Exception as e:
+        typer.secho(f"❌ Erro ao executar self-healing: {e}", fg=typer.colors.RED)
+
+@app.command()
+def sobre():
+    """
+    Exibe informações sobre a biblioteca DOM-Heal e autoria.
+    """
+    typer.echo("DOM-Heal: Biblioteca de Self-Healing para Testes Automatizados - Projeto de TCC (Jonnas Christian, UECE, 2025)")
 
 def main():
+    """
+    Função principal para permitir execução direta do CLI.
+    """
     app()
 
 if __name__ == "__main__":

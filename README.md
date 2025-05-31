@@ -1,73 +1,48 @@
+# 🧬 DOM-Heal: Biblioteca Genérica de Self-Healing para Testes Automatizados de Interfaces Web
 
-# 🧠 Self-Healing Test Automation (DOM-based)
+[![PyPI version](https://badge.fury.io/py/dom-heal.svg)](https://pypi.org/project/dom-heal/)
 
-Este projeto é uma prova de conceito de um mecanismo *self-healing* para testes automatizados, com foco em páginas web com DOM dinâmico. O objetivo é extrair elementos da estrutura HTML, comparar mudanças entre versões e permitir readequação automática de seletores.
+DOM-Heal é uma biblioteca Python open-source que automatiza a detecção e correção de seletores quebrados em testes web, permitindo auto-recuperação (self-healing) de scripts de automação frente a mudanças no DOM.
 
----
-
-## 🔧 Requisitos
-
-- Python 3.7+
-- Google Chrome instalado
-- pip (para instalar bibliotecas)
+Desenvolvido como Trabalho de Conclusão de Curso em Ciência da Computação (UECE, 2025).
 
 ---
 
-## 📁 Estrutura do Projeto
+## ✨ Por que usar DOM-Heal?
 
-```
-.
-├── data/                      # Onde os arquivos JSON extraídos são salvos
-├── dom_test_env/              # Página com DOM que muda dinamicamente
-├── self_healing/  # Lógica de extração de DOM com Selenium
-└── run_traduzido.py           # Script principal de extração
-```
+- Reduz falhas em testes automatizados causadas por mudanças de ID, nome, classe ou estrutura no DOM.
+- Mantenha seus testes E2E de quaisquer frameworks, sem editar todos os seletores manualmente.
+- Heurística robusta baseada em similaridade, palavras-chave e contexto, funcionando em QUALQUER sistema web.
 
 ---
 
-## 🚀 Como executar
+## 🚀 Instalação
 
-### 1. Servir a página HTML localmente
-
-No terminal, dentro da pasta `dom_test_env`:
+Requer Python 3.7+.
 
 ```bash
-python -m http.server 8000
+pip install dom-heal
 ```
-
-Acesse no navegador:
-
-```
-http://localhost:8000/
-```
-
-Isso abrirá a página `dynamic_test.html`, onde os elementos HTML mudam dinamicamente a cada 20 segundos.
-
 ---
 
-### 2. Executar o script Python para extrair elementos do DOM
+## 📖 Como usar
 
-Antes, instale os pacotes necessários:
+### 1. Prepare seu arquivo JSON de seletores
 
-```bash
-pip install selenium webdriver-manager
+Você precisa usar um arquivo `.json` com os seletores lógicos dos elementos do seu teste. Exemplo:
+
+```json
+{
+  "inputEmail": "#email",
+  "btnEnviar": "#submit",
+  "mensagemSucesso": ".alert-success"
+}
 ```
 
-Em seguida, execute o script:
+### 2. Execute o self-healing pelo CLI
+
+Com a biblioteca instalada, rode o comando apontando para o arquivo de seletores e a URL do sistema que deseja analisar:
 
 ```bash
-python run.py
+dom-heal rodar --json caminho/para/seletores.json --url https://seusistema.com/sua_pagina
 ```
-
-Isso irá:
-- Acessar a página
-- Esperar ela carregar
-- Extrair os elementos do DOM
-- Salvar em: `./data/elementos_extraidos.json`
-
-
----
-
-## 📄 Licença
-
-Este projeto foi desenvolvido como parte de um TCC de Ciência da Computação com fins educacionais e de pesquisa.

@@ -1,9 +1,11 @@
 """
-Testes unitários para o módulo engine.
-Cobre as principais funções utilitárias e o fluxo de self-healing:
-- Criação e gravação de JSON
-- Geração de log de alterações
-- Execução do fluxo principal com mocks (criação do baseline)
+Testes unitários para o módulo engine da biblioteca DOM-Heal.
+
+Esses testes validam a correta gravação e manipulação de arquivos JSON, 
+a filtragem de logs para alterações relevantes e o fluxo completo do processo 
+de self-healing via mocks. Garantem que as funções essenciais de persistência, 
+log e execução do motor funcionam como esperado, prevenindo regressões em operações 
+críticas do ciclo de atualização automática dos seletores.
 """
 
 import pytest
@@ -11,62 +13,53 @@ import json
 from pathlib import Path
 from dom_heal.engine import gravar_json, salvar_diff_alterados, self_heal
 
-def test_gravar_json_cria_arquivo_e_diretorio(tmp_path):
-    # Testa criação de JSON e diretório novo
+def test_gravar_json_cria_arquivo(tmp_path):
+    """Testa se a função grava_json salva corretamente o dicionário como JSON."""
     dados = {"campo": 123}
-    caminho = tmp_path / "nova_pasta" / "arquivo.json"
+    caminho = tmp_path / "arquivo.json"
     gravar_json(caminho, dados)
-    assert caminho.exists()
+    assert caminho.exists(), "Arquivo JSON não foi criado"
     with caminho.open(encoding="utf-8") as arq:
         salvo = json.load(arq)
-    assert salvo == dados
+    assert salvo == dados, "Conteúdo salvo difere do esperado"
 
 def test_salvar_diff_alterados(tmp_path):
-    # Testa se só campos com valor diferente são salvos
+    """Testa se só campos não vazios são salvos no log."""
     seletores_json = tmp_path / "seletores.json"
     seletores_json.write_text("{}", encoding="utf-8")
-    diferencas = {"adicionados": ["el1"], "removidos": [], "alterados": [], "movidos": ["el2"]}
+    diferencas = {
+        "alterados": [{"nome": "btn", "selector_antigo": "#a", "novo_seletor": "#b"}],
+        "removidos": [],
+        "adicionados": []
+    }
     salvar_diff_alterados(diferencas, seletores_json)
     caminho_log = seletores_json.parent / "ElementosAlterados.json"
-    assert caminho_log.exists()
+    assert caminho_log.exists(), "Arquivo de log não foi criado"
     with caminho_log.open(encoding="utf-8") as arq:
         log = json.load(arq)
-    assert "adicionados" in log and "movidos" in log
-    assert "removidos" not in log  # pois está vazio
-    assert "alterados" not in log  # pois está vazio
+    assert "alterados" in log, "Campo 'alterados' não foi salvo"
+    assert "removidos" not in log, "Campo 'removidos' deveria ter sido omitido"
+    assert "adicionados" not in log, "Campo 'adicionados' deveria ter sido omitido"
 
-def test_self_heal_baseline(monkeypatch, tmp_path):
-    # Testa comportamento quando o snapshot baseline ainda não existe
+def test_self_heal_fluxo(monkeypatch, tmp_path):
+    """Testa se o self_heal executa todo o fluxo e retorna os caminhos dos arquivos."""
     caminho_json = tmp_path / "seletores.json"
-    caminho_json.write_text(json.dumps([{"xpath": "/a", "id": "x"}]), encoding="utf-8")
+    caminho_json.write_text(json.dumps([
+        {"nome": "btnEnviar", "selector": "#antigo"}
+    ]), encoding="utf-8")
 
-    # Mock extrair_snapshot para simular retorno da página (T1)
-    monkeypatch.setattr("dom_heal.engine.extrair_snapshot", lambda url: [{"xpath": "/a", "id": "x"}])
-    # Mock gerar_diferencas para não comparar nada
-    monkeypatch.setattr("dom_heal.engine.gerar_diferencas", lambda t0, t1: {})
-    # Mock atualizar_seletores só para não dar erro
+    # Mocks
+    monkeypatch.setattr("dom_heal.engine.extrair_dom", lambda url: [
+        {"tag": "button", "id": "btnEnviar", "class": "btn", "xpath": "/html/body/button[1]"}
+    ])
+    monkeypatch.setattr("dom_heal.engine.gerar_diferencas", lambda antes, depois: {
+        "alterados": [
+            {"nome": "btnEnviar", "selector_antigo": "#antigo", "novo_seletor": "#btnEnviar"}
+        ]
+    })
     monkeypatch.setattr("dom_heal.engine.atualizar_seletores", lambda diff, caminho: None)
 
-    from dom_heal.engine import DIRETORIO_SNAPSHOTS
-    resultado = self_heal(str(caminho_json), "http://dummy")
-    # O baseline deve ser salvo e não rodar o healing completo
-    id_url = caminho_json.stem.replace(" ", "_").replace(".", "_")
-    caminho_snapshot = DIRETORIO_SNAPSHOTS / f"{id_url}.json"
-    assert "Self-healing finalizado" in resultado["msg"]
-
-def test_self_heal_aplica_healing(monkeypatch, tmp_path):
-    # Simula baseline já existente e aplica um diff fictício
-    caminho_json = tmp_path / "seletores.json"
-    caminho_json.write_text(json.dumps([{"xpath": "/a", "id": "x"}]), encoding="utf-8")
-    id_url = caminho_json.stem.replace(" ", "_").replace(".", "_")
-    from dom_heal.engine import DIRETORIO_SNAPSHOTS
-    DIRETORIO_SNAPSHOTS.mkdir(exist_ok=True)
-    caminho_snapshot = DIRETORIO_SNAPSHOTS / f"{id_url}.json"
-    caminho_snapshot.write_text(json.dumps([{"xpath": "/a", "id": "x"}]), encoding="utf-8")
-    # Mocks
-    monkeypatch.setattr("dom_heal.engine.extrair_snapshot", lambda url: [{"xpath": "/b", "id": "y"}])
-    monkeypatch.setattr("dom_heal.engine.gerar_diferencas", lambda t0, t1: {"adicionados": ["/b"]})
-    logs = []
-    monkeypatch.setattr("dom_heal.engine.atualizar_seletores", lambda diff, caminho: logs.append(diff))
-    resultado = self_heal(str(caminho_json), "http://dummy")
-    assert "Self-healing finalizado" in resultado["msg"]
+    resultado = self_heal(str(caminho_json), "http://teste")
+    assert "msg" in resultado, "Resultado deve conter 'msg'"
+    assert "log_detalhado" in resultado, "Resultado deve conter 'log_detalhado'"
+    assert "json_atualizado" in resultado, "Resultado deve conter 'json_atualizado'"

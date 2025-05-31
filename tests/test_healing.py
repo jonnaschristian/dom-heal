@@ -1,7 +1,8 @@
 """
 Testes unitários para o módulo healing.
-Valida o comportamento da função atualizar_seletores para todos os tipos de diffs:
-adicionados, removidos, alterados e movidos.
+Valida o comportamento da função atualizar_seletores no formato moderno:
+- Atualiza valores por nome lógico
+- Remove, adiciona e altera corretamente
 """
 
 import pytest
@@ -17,55 +18,56 @@ def criar_json(tmp_path, dados):
 def ler_json(arquivo):
     return json.loads(arquivo.read_text(encoding="utf-8"))
 
-def test_adiciona_xpath(tmp_path):
-    arquivo = criar_json(tmp_path, {"a": {"id": "x"}})
-    diff = {"adicionados": ["b"]}
+def test_altera_selector(tmp_path):
+    arquivo = criar_json(tmp_path, {"btnEnviar": "#antigo"})
+    diff = {"alterados": [{"nome": "btnEnviar", "selector_antigo": "#antigo", "novo_seletor": "#btnNovo"}]}
     atualizar_seletores(diff, arquivo)
     atualizado = ler_json(arquivo)
-    assert "b" in atualizado
-    assert atualizado["b"] == {}
+    assert atualizado["btnEnviar"] == "#btnNovo"
 
-def test_remove_xpath(tmp_path):
-    arquivo = criar_json(tmp_path, {"a": {"id": "x"}, "b": {"id": "y"}})
-    diff = {"removidos": ["b"]}
+def test_remove_nome_logico(tmp_path):
+    arquivo = criar_json(tmp_path, {"campo": "#abc", "remover": "#remover"})
+    diff = {"removidos": [{"nome": "remover"}]}
     atualizar_seletores(diff, arquivo)
     atualizado = ler_json(arquivo)
-    assert "b" not in atualizado
-    assert "a" in atualizado
+    assert "remover" not in atualizado
+    assert "campo" in atualizado
 
-def test_altera_atributos(tmp_path):
-    arquivo = criar_json(tmp_path, {"a": {"id": "x", "class": "foo"}})
-    diff = {"alterados": [
-        {"xpath": "a", "diferencas": {"id": {"antes": "x", "depois": "y"}, "class": {"antes": "foo", "depois": "bar"}}}
-    ]}
+def test_adiciona_novo(tmp_path):
+    arquivo = criar_json(tmp_path, {"a": "#x"})
+    diff = {"adicionados": [{"nome": "b", "novo_seletor": "#y"}]}
     atualizar_seletores(diff, arquivo)
     atualizado = ler_json(arquivo)
-    assert atualizado["a"]["id"] == "y"
-    assert atualizado["a"]["class"] == "bar"
+    assert atualizado["b"] == "#y"
+    assert atualizado["a"] == "#x"
 
-def test_move_xpath(tmp_path):
-    arquivo = criar_json(tmp_path, {"a": {"id": "x"}, "c": {"id": "z"}})
-    diff = {"movidos": [{"de": "a", "para": "b"}]}
+def test_idempotente_ao_adicionar_existente(tmp_path):
+    arquivo = criar_json(tmp_path, {"a": "#x"})
+    diff = {"adicionados": [{"nome": "a", "novo_seletor": "#x"}]}
     atualizar_seletores(diff, arquivo)
     atualizado = ler_json(arquivo)
-    assert "a" not in atualizado
-    assert "b" in atualizado
-    assert atualizado["b"]["id"] == "x"
-    assert "c" in atualizado  # nada mexeu nela
+    assert atualizado["a"] == "#x"
 
-def test_arquivo_nao_existe(tmp_path):
-    arquivo = tmp_path / "inexistente.json"
-    diff = {"adicionados": ["x"]}
+def test_file_not_found(tmp_path):
+    arquivo = tmp_path / "nao_existe.json"
+    diff = {"alterados": [{"nome": "qualquer", "selector_antigo": "#a", "novo_seletor": "#b"}]}
     with pytest.raises(FileNotFoundError):
         atualizar_seletores(diff, arquivo)
 
-def test_adiciona_existente_remove_inexistente(tmp_path):
-    arquivo = criar_json(tmp_path, {"a": {}})
-    diff = {"adicionados": ["a"], "removidos": ["b"]}
-    # Não deve quebrar nem alterar o existente
+def test_altera_e_remove_ao_mesmo_tempo(tmp_path):
+    arquivo = criar_json(tmp_path, {"campo": "#antigo", "deletar": "#del"})
+    diff = {
+        "alterados": [{"nome": "campo", "selector_antigo": "#antigo", "novo_seletor": "#novo"}],
+        "removidos": [{"nome": "deletar"}]
+    }
     atualizar_seletores(diff, arquivo)
     atualizado = ler_json(arquivo)
-    assert "a" in atualizado and isinstance(atualizado["a"], dict)
-    # Não adicionou "b" e nem removeu "a" por engano
-    assert "b" not in atualizado
+    assert atualizado["campo"] == "#novo"
+    assert "deletar" not in atualizado
 
+def test_sem_nenhuma_alteracao(tmp_path):
+    arquivo = criar_json(tmp_path, {"a": "#a"})
+    diff = {}
+    atualizar_seletores(diff, arquivo)
+    atualizado = ler_json(arquivo)
+    assert atualizado["a"] == "#a"
