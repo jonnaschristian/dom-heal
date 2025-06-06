@@ -55,7 +55,7 @@ def criar_driver() -> webdriver.Chrome:
         webdriver.Chrome: Instância configurada para execução headless.
     """
     opcoes = webdriver.ChromeOptions()
-    opcoes.add_argument('--headless')
+    opcoes.add_argument('--headless')  # Pode comentar para debug local
     opcoes.add_argument('--disable-gpu')
     opcoes.add_argument('--log-level=3')
     opcoes.add_experimental_option('excludeSwitches', ['enable-logging'])
@@ -134,18 +134,23 @@ def extrair_dom(url: str, driver=None) -> list:
     Extrai o DOM da URL informada e retorna uma lista de dicionários de elementos.
 
     Args:
-        url (str): URL da página.
-        driver: Instância existente do Chrome (opcional, para reuso).
+        url (str): URL da página para extração.
+        driver: Instância opcional do Chrome WebDriver.
 
     Returns:
-        list: Lista de dicionários com informações dos elementos do <body>.
+        list: Lista de dicionários com atributos relevantes de cada elemento.
     """
     possui_driver = driver is not None
     drv = driver or criar_driver()
     try:
         carregar_pagina(drv, url)
         elementos = obter_elementos(drv)
-        return [montar_info_elemento(drv, el) for el in elementos]
+        info_list = []
+        for el in elementos:
+            info = montar_info_elemento(drv, el)
+            # Print removido para uso em produção
+            info_list.append(info)
+        return info_list
     finally:
         if not possui_driver:
             drv.quit()
