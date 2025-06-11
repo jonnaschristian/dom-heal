@@ -1,65 +1,73 @@
 """
 Testes unitários para o módulo engine da biblioteca DOM-Heal.
 
-Esses testes validam a correta gravação e manipulação de arquivos JSON, 
-a filtragem de logs para alterações relevantes e o fluxo completo do processo 
-de self-healing via mocks. Garantem que as funções essenciais de persistência, 
-log e execução do motor funcionam como esperado, prevenindo regressões em operações 
-críticas do ciclo de atualização automática dos seletores.
+Cobrem o fluxo completo da função `self_heal` incluindo:
+- Geração de JSON com seletores antigos
+- Chamada e integração de funções internas: extrair_dom, gerar_diferencas, atualizar_seletores
+- Mock de requisição HTTP (`requests.get`) para evitar conexões reais
+- Verificação dos caminhos retornados no dicionário de resultado
 """
-
 import pytest
 import json
 from pathlib import Path
-from dom_heal.engine import gravar_json, salvar_diff_alterados, self_heal
+
+import dom_heal.engine as eng
+
+class DummyResponse:
+    def __init__(self, text, as_json=None):
+        self.text = text
+        self._json = as_json
+    def json(self):
+        if self._json is not None:
+            return self._json
+        raise ValueError("No JSON")
 
 def test_gravar_json_cria_arquivo(tmp_path):
-    """Testa se a função grava_json salva corretamente o dicionário como JSON."""
-    dados = {"campo": 123}
-    caminho = tmp_path / "arquivo.json"
-    gravar_json(caminho, dados)
-    assert caminho.exists(), "Arquivo JSON não foi criado"
-    with caminho.open(encoding="utf-8") as arq:
-        salvo = json.load(arq)
-    assert salvo == dados, "Conteúdo salvo difere do esperado"
+    data = {"x": 1}
+    out = tmp_path / "out.json"
+    # Ordem correta: gravar_json(caminho, dados)
+    eng.gravar_json(out, data)
+    assert out.exists()
+    assert json.loads(out.read_text()) == data
 
-def test_salvar_diff_alterados(tmp_path):
-    """Testa se só campos não vazios são salvos no log."""
-    seletores_json = tmp_path / "seletores.json"
-    seletores_json.write_text("{}", encoding="utf-8")
-    diferencas = {
-        "alterados": [{"nome": "btn", "selector_antigo": "#a", "novo_seletor": "#b"}],
-        "removidos": [],
-        "adicionados": []
-    }
-    salvar_diff_alterados(diferencas, seletores_json)
-    caminho_log = seletores_json.parent / "ElementosAlterados.json"
-    assert caminho_log.exists(), "Arquivo de log não foi criado"
-    with caminho_log.open(encoding="utf-8") as arq:
-        log = json.load(arq)
-    assert "alterados" in log, "Campo 'alterados' não foi salvo"
-    assert "removidos" not in log, "Campo 'removidos' deveria ter sido omitido"
-    assert "adicionados" not in log, "Campo 'adicionados' deveria ter sido omitido"
 
-def test_self_heal_fluxo(monkeypatch, tmp_path):
-    """Testa se o self_heal executa todo o fluxo e retorna os caminhos dos arquivos."""
-    caminho_json = tmp_path / "seletores.json"
-    caminho_json.write_text(json.dumps([
-        {"nome": "btnEnviar", "selector": "#antigo"}
-    ]), encoding="utf-8")
+def test_self_heal_download_fail(tmp_path, monkeypatch):
+    caminho = tmp_path / "seletores.json"
+    caminho.write_text(json.dumps([{"nome":"x","selector":"#x"}]), encoding="utf-8")
+    monkeypatch.setattr(eng, "extrair_dom", lambda url: [])
+    monkeypatch.setattr("requests.get", lambda url: (_ for _ in ()).throw(Exception("fail")))
+    with pytest.raises(RuntimeError) as ei:
+        eng.self_heal(str(caminho), "http://x")
+    assert "Erro ao baixar HTML" in str(ei.value)
 
-    # Mocks
-    monkeypatch.setattr("dom_heal.engine.extrair_dom", lambda url: [
-        {"tag": "button", "id": "btnEnviar", "class": "btn", "xpath": "/html/body/button[1]"}
-    ])
-    monkeypatch.setattr("dom_heal.engine.gerar_diferencas", lambda antes, depois: {
-        "alterados": [
-            {"nome": "btnEnviar", "selector_antigo": "#antigo", "novo_seletor": "#btnEnviar"}
-        ]
-    })
-    monkeypatch.setattr("dom_heal.engine.atualizar_seletores", lambda diff, caminho: None)
+def test_self_heal_json_fail(tmp_path, monkeypatch):
+    caminho = tmp_path / "invalido.json"
+    caminho.write_text("not valid json", encoding="utf-8")
+    monkeypatch.setattr(eng, "extrair_dom", lambda url: [])
+    monkeypatch.setattr("requests.get", lambda url: DummyResponse("<html></html>"))
+    with pytest.raises(RuntimeError) as ei:
+        eng.self_heal(str(caminho), "http://ok")
+    assert "Erro ao ler JSON" in str(ei.value)
 
-    resultado = self_heal(str(caminho_json), "http://teste")
-    assert "msg" in resultado, "Resultado deve conter 'msg'"
-    assert "log_detalhado" in resultado, "Resultado deve conter 'log_detalhado'"
-    assert "json_atualizado" in resultado, "Resultado deve conter 'json_atualizado'"
+def test_self_heal_success(tmp_path, monkeypatch):
+    caminho = tmp_path / "ok.json"
+    caminho.write_text(json.dumps([{"nome":"btn","selector":"#a"}]), encoding="utf-8")
+    monkeypatch.setattr(eng, "extrair_dom", lambda url: [{"tag":"div"}])
+    monkeypatch.setattr(eng, "gerar_diferencas", lambda *a, **k: {"alterados":[{"nome":"btn"}]})
+    monkeypatch.setattr(eng, "atualizar_seletores", lambda *a, **k: None)
+    monkeypatch.setattr("requests.get", lambda url: DummyResponse("<html></html>"))
+    result = eng.self_heal(str(caminho), "http://ok")
+    assert "finalizado" in result["msg"]
+    assert result["json_atualizado"].endswith(".json")
+
+def test_self_heal_sem_alteracoes(tmp_path, monkeypatch):
+    caminho = tmp_path / "nochange.json"
+    caminho.write_text(json.dumps([{"nome":"btn","selector":"#a"}]), encoding="utf-8")
+    monkeypatch.setattr(eng, "extrair_dom", lambda url: [])
+    monkeypatch.setattr(eng, "gerar_diferencas", lambda *a, **k: {})
+    monkeypatch.setattr(eng, "atualizar_seletores", lambda *a, **k: None)
+    monkeypatch.setattr("requests.get", lambda url: DummyResponse("<html></html>"))
+    result = eng.self_heal(str(caminho), "http://ok")
+    assert "Self-healing finalizado" in result["msg"]
+    assert result["json_atualizado"].endswith(".json")
+

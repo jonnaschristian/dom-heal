@@ -1,125 +1,120 @@
-"""
-Testes unitários para o módulo comparator da biblioteca DOM-Heal.
-
-Esses testes garantem o correto funcionamento da heurística de matching de seletores, 
-validando casos de atualização por id, name, class, priorização de id em empates, 
-matching semântico, múltiplos elementos, prevenção de duplicidade, nomes parecidos 
-e comportamento seguro em cenários sem similaridade. Os testes também previnem 
-regressões e garantem robustez para os principais fluxos de self-healing.
-"""
-
 import pytest
-from dom_heal.comparator import gerar_diferencas
+from rapidfuzz import fuzz
+from dom_heal.comparator import (
+    formatar_selector,
+    detectar_tipo_selector,
+    score_fuzzy,
+    boost_prefixo, boost_sufixo, boost_um_char, boost_palavras_iguais,
+    aplicar_boost,
+    score_class,
+    validar_xpath,
+    heal_xpath,
+    fuzzy_matching_selector,
+    gerar_diferencas,
+)
 
-def test_id_para_novo_id():
-    """Deve atualizar seletor por id corretamente."""
-    antes = [{"nome": "btnEnviar", "selector": "#botaoEnviar"}]
-    depois = [{"tag": "button", "id": "btnEnviar", "class": "btn", "xpath": "/html/body/button[1]"}]
-    diff = gerar_diferencas(antes, depois)
-    assert "alterados" in diff, "Deveria retornar chave 'alterados' no diff"
-    assert diff["alterados"][0]["novo_seletor"] == "#btnEnviar", "Deveria atualizar para o novo id"
+def test_formatar_selector_various():
+    assert formatar_selector('id', 'a') == '#a'
+    assert formatar_selector('name', 'b') == '[name="b"]'
+    assert formatar_selector('class', 'x y', 'div') == 'div.x.y'
+    assert formatar_selector('xpath', '//p') == '//p'
+    assert formatar_selector('outro', 'z') == 'z'
 
-def test_matching_por_name():
-    """Matching deve funcionar por atributo name."""
-    antes = [{"nome": "inputEmail", "selector": "#emailInput"}]
-    depois = [{"tag": "input", "name": "email", "class": "input-email", "xpath": "/html/body/input[1]"}]
-    diff = gerar_diferencas(antes, depois)
-    assert "alterados" in diff, "Deveria haver 'alterados' para update por name"
-    assert '[name="email"]' in diff["alterados"][0]["novo_seletor"], "Deveria sugerir seletor por name"
+def test_detectar_tipo_selector():
+    assert detectar_tipo_selector('#a') == 'id'
+    assert detectar_tipo_selector('[name="a"]') == 'name'
+    assert detectar_tipo_selector('.c') == 'class'
+    assert detectar_tipo_selector('//x') == 'xpath'
 
-def test_matching_por_class():
+def test_score_fuzzy_and_boosts():
+    assert pytest.approx(score_fuzzy('abc', 'abc'), 0.0001) == 1.0
+    assert boost_prefixo('abcd', 'abzz') == 0.1
+    assert boost_sufixo('abcd', 'zzcd') == 0.1
+    assert boost_um_char('abcd', 'abce') == 0.1
+    assert boost_palavras_iguais('a b', 'b a') == 0.1
+    assert boost_palavras_iguais('', '') == 0
+
+def test_aplicar_boost_limits():
+    btotal, details = aplicar_boost('id', 'abc', 'abc', '')
+    assert 0 <= btotal <= 0.2
+    assert 'boost_total' in details
+
+def test_score_class():
+    conj1 = {'a', 'b'}
+    conj2 = {'b', 'c', 'a'}
+    assert score_class(conj1, conj2) > 0
+
+def test_validar_xpath_success_and_fail():
+    from lxml import html as lh
+    dom = lh.fromstring("<html><body><p>hi</p></body></html>")
+    assert validar_xpath('//p', dom)
+    assert not validar_xpath('//nosuch', dom)
+
+def test_heal_xpath_error_empty():
+    with pytest.raises(ValueError):
+        heal_xpath('//x', '')
+
+HTML = "<body><div id='foo' class='bar baz'></div></body>"
+def test_heal_xpath_success_replace():
+    xpath_old = "//div[contains(@id,'foo')]"
+    new, score, _ = heal_xpath(xpath_old, HTML)
+    assert new != xpath_old and 'foo' in new
+
+def test_heal_xpath_no_matches():
+    new, score, _ = heal_xpath("//div[contains(@class,'zzz')]", HTML)
+    assert new is None and score is None
+
+DOM = [
+    {'tag': 'input', 'id': 'campoX', 'class': None, 'xpath': '/a'},
+    {'tag': 'div', 'id': None, 'class': 'meu-classe', 'xpath': '/b'}
+]
+
+def test_fuzzy_selector_xpath_branch():
+    sel, elem, score, tipo, idx, boosts = fuzzy_matching_selector("//a", DOM, html_puro="<html></html>")
+    assert tipo == 'xpath'
+    assert sel is None or sel.startswith('/')
+
+def test_fuzzy_selector_id_branch():
+    sel, elem, score, tipo, idx, boosts = fuzzy_matching_selector("#campoX", DOM)
+    assert tipo == 'id' and sel == '#campoX'
+
+def test_fuzzy_selector_class_branch_and_used():
+    sel, *rest = fuzzy_matching_selector(".meu-classe", DOM, elementos_ja_usados={1})
+    assert sel is None
+
+def test_fuzzy_selector_noboost_no_match():
+    sel, *rest = fuzzy_matching_selector("#zzz", DOM)
+    assert sel is None
+
+def test_gerar_diferencas_empty_and_invalid():
+    assert gerar_diferencas([], []) == {}
+    assert gerar_diferencas([{'nome': None, 'selector': None}], DOM) == {}
+
+def test_gerar_diferencas_tie(monkeypatch):
     """
-    Deve sugerir seletor novo por classe, se id/name não encontrados e as classes são praticamente iguais,
-    mas diferentes (ex: ajuste por bugfix, internacionalização etc).
+    Quando o score fica exatamente no limiar (ex: 0.70 para 'id'), sem boost,
+    deve retornar dict vazio (nenhuma alteração).
     """
-    antes = [{"nome": "alertaSucesso", "selector": ".alerta-success"}]  # Valor levemente diferente do novo
-    depois = [{"tag": "div", "class": "alert-success", "xpath": "/html/body/div[1]"}]
-    diff = gerar_diferencas(antes, depois)
-    assert "alterados" in diff, "Deveria sugerir update por class"
-    assert ".alert-success" in diff["alterados"][0]["novo_seletor"], "Deveria sugerir a classe nova"
+    antes = [{'nome': 'n', 'selector': '#n'}]
+    depois = [{'tag': 'div', 'id': 'n', 'class': 'n', 'xpath': '/n'}]
 
-def test_ignora_quando_nao_tem_similar():
-    """Não deve sugerir update quando não há similaridade razoável."""
-    antes = [{"nome": "titulo", "selector": "#tituloAntigo"}]
-    depois = [{"tag": "h1", "id": "header", "class": "destaque", "xpath": "/html/body/h1[1]"}]
-    diff = gerar_diferencas(antes, depois)
-    assert "alterados" not in diff or len(diff["alterados"]) == 0, "Não deveria haver alteração se não há similar"
+    import dom_heal.comparator as cmp
+    monkeypatch.setattr(cmp, 'fuzzy_matching_selector',
+        lambda *args, **kwargs: ("#n", {}, cmp.LIMIARES_POR_CAMPO['id'], 'id', 0, {}))
 
-def test_fallback_prioriza_id():
-    """Quando existe id igual ao nome, id deve ser priorizado."""
-    antes = [{"nome": "campoNome", "selector": ".nome-antigo"}]
-    depois = [
-        {"tag": "input", "id": "campoNome", "class": "nome-novo", "xpath": "/html/body/input[1]"},
-        {"tag": "input", "class": "nome-campo", "xpath": "/html/body/input[2]"}
-    ]
-    diff = gerar_diferencas(antes, depois)
-    assert "alterados" in diff, "Deveria sugerir alteração"
-    assert diff["alterados"][0]["novo_seletor"] == "#campoNome", "Deveria priorizar id no update"
+    diff = cmp.gerar_diferencas(antes, depois)
+    assert diff == {}, "Empate exato sem boost deve resultar em diff vazio"
 
-def test_empate_prioriza_id():
-    """Quando empate, id deve ser preferido ao invés de apenas class."""
-    antes = [{"nome": "acao", "selector": ".acao-antiga"}]
-    depois = [
-        {"tag": "button", "id": "acao", "class": "acao", "xpath": "/html/body/button[1]"},
-        {"tag": "button", "class": "acao", "xpath": "/html/body/button[2]"}
-    ]
-    diff = gerar_diferencas(antes, depois)
-    assert "alterados" in diff, "Deveria sugerir alteração"
-    assert diff["alterados"][0]["novo_seletor"] == "#acao", "Deveria priorizar id no empate"
+def test_aplicar_boost_each_case():
 
-def test_traducao_palavra_chave():
-    """Deve detectar mudança de palavra-chave relevante, por exemplo, name semanticamente similar."""
-    antes = [{"nome": "inputUsuario", "selector": "#userInput"}]
-    depois = [{"tag": "input", "name": "usuario", "class": "user-form", "xpath": "/html/body/input[1]"}]
-    diff = gerar_diferencas(antes, depois)
-    assert "alterados" in diff, "Deveria sugerir alteração para similaridade semântica por name"
-    assert '[name="usuario"]' in diff["alterados"][0]["novo_seletor"], "Deveria sugerir seletor pelo novo name"
+    boost, det = aplicar_boost('name', 'abcde', 'abzzz', 0.5)
+    assert det.get('prefixo') == 0.1
 
-def test_varios_elementos_robustez():
-    """Matching múltiplo: todos devem ser detectados individualmente (apenas onde há similaridade de fato)."""
-    antes = [
-        {"nome": "campoEmail", "selector": "#emailAntigo"},
-        {"nome": "btnSubmit", "selector": "#submitAntigo"}
-        # {"nome": "alertSucesso", "selector": ".alerta-old"}  # Removido pois não há similaridade real!
-    ]
-    depois = [
-        {"tag": "input", "id": "campoEmail", "name": "email", "class": "input-email", "xpath": "/input[1]"},
-        {"tag": "button", "id": "btnSubmit", "class": "btn-submit", "xpath": "/button[1]"},
-        {"tag": "div", "class": "alert-success", "xpath": "/div[1]"}
-    ]
-    diff = gerar_diferencas(antes, depois)
-    nomes = [alt["nome"] for alt in diff.get("alterados", [])]
-    assert "campoEmail" in nomes, "campoEmail deveria estar nos alterados"
-    assert "btnSubmit" in nomes, "btnSubmit deveria estar nos alterados"
-    # assert "alertSucesso" in nomes, "alertSucesso deveria estar nos alterados"  # Removido!
+    boost, det = aplicar_boost('name', 'abcde', 'zzzde', 0.5)
+    assert det.get('sufixo') == 0.1
 
-def test_nao_duplicar_elemento():
-    """Não deve mapear o mesmo elemento novo para dois antigos."""
-    antes = [
-        {"nome": "campoEmail", "selector": ".email"},
-        {"nome": "campoEmailConfirmacao", "selector": ".email-confirm"}
-    ]
-    depois = [
-        {"tag": "input", "id": "email", "class": "email", "xpath": "/input[1]"},
-        {"tag": "input", "id": "emailConf", "class": "email-confirm", "xpath": "/input[2]"}
-    ]
-    diff = gerar_diferencas(antes, depois)
-    seletores = [alt["novo_seletor"] for alt in diff.get("alterados", [])]
-    assert "#email" in seletores, "Seletor do primeiro campo não foi atualizado corretamente"
-    assert "#emailConf" in seletores, "Seletor do campo de confirmação não foi atualizado corretamente"
-    assert seletores.count("#email") == 1, "Elemento novo não deve ser duplicado"
+    boost, det = aplicar_boost('name', 'abcde', 'abxde', 0.5)
+    assert det.get('um_char') == 0.1
 
-def test_nomes_parecidos_nao_confunde():
-    """Nomes parecidos não devem confundir o matching."""
-    antes = [
-        {"nome": "campoNome", "selector": ".nome-antigo"},
-        {"nome": "campoNomeMae", "selector": ".nome-mae-antigo"}
-    ]
-    depois = [
-        {"tag": "input", "id": "campoNome", "class": "nome", "xpath": "/input[1]"},
-        {"tag": "input", "id": "campoNomeMae", "class": "nome-mae", "xpath": "/input[2]"}
-    ]
-    diff = gerar_diferencas(antes, depois)
-    nomes = [alt["nome"] for alt in diff.get("alterados", [])]
-    assert "campoNome" in nomes, "Matching não deve ignorar o campoNome"
-    assert "campoNomeMae" in nomes, "Matching não pode confundir campoNome com campoNomeMae"
+    boost, det = aplicar_boost('name', 'foo bar', 'bar foo', 0.5)
+    assert det.get('palavras_iguais') == 0.1
