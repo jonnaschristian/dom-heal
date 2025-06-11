@@ -8,13 +8,16 @@ Inclui:
 - Normalização de entrada para listas de objetos padronizados, compatível com diferentes formatos de frameworks e usuários finais.
 """
 
-def normalizar_elementos(data):
+from typing import Any, List, Dict, Union
+
+def normalizar_elementos(data: Union[list, dict]) -> List[Dict[str, str]]:
     """
     Normaliza os seletores fornecidos, aceitando tanto listas de objetos quanto dicionários
     no formato {nome: seletor}. Sempre converte para lista de objetos com 'nome' e 'selector'.
 
     Args:
-        data: Lista de objetos (ex: [{'nome': 'campo', 'selector': '#id'}]) ou dicionário {nome: seletor}.
+        data (list|dict): Lista de objetos (ex: [{'nome': 'campo', 'selector': '#id'}])
+                          ou dicionário {nome: seletor}.
 
     Returns:
         list: Lista de dicionários uniformizada, ex: [{'nome': 'campo', 'selector': '#id'}]

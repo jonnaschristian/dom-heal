@@ -12,7 +12,6 @@ Principais responsabilidades:
 - Compatível com múltiplos formatos de diff (nome, nome_lógico, xpath)
 
 Ideal para ser chamado pelo engine ou integrado diretamente a outros fluxos de automação.
-
 """
 
 import json
@@ -22,14 +21,16 @@ from typing import Any, Dict
 def atualizar_seletores(diferencas: Dict[str, Any], caminho_seletores: Path) -> None:
     """
     Atualiza o arquivo de seletores (JSON: nome_lógico → seletor) conforme as diferenças encontradas.
+
     Aplica alterações, remoções ou adições de seletores de acordo com as chaves do diff.
 
     Args:
-        diferencas (dict): Dicionário de alterações (ex: 'alterados', 'removidos', 'adicionados').
+        diferencas (Dict[str, Any]): Dicionário de alterações (ex: 'alterados', 'removidos', 'adicionados').
         caminho_seletores (Path): Caminho do arquivo JSON de seletores.
 
     Raises:
         FileNotFoundError: Se o arquivo de seletores não existir.
+        json.JSONDecodeError: Se o JSON do arquivo de seletores estiver inválido.
     """
     if not caminho_seletores.exists():
         raise FileNotFoundError(f"Arquivo de seletores não encontrado em {caminho_seletores}")

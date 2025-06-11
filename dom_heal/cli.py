@@ -29,6 +29,9 @@ def rodar(
     Args:
         json (str): Caminho para o arquivo de seletores (.json).
         url (str): URL da página alvo.
+
+    Example:
+        dom-heal rodar --json ./meus_seletores.json --url https://site.com/pagina
     """
     try:
         resultado = self_heal(json, url)
@@ -42,6 +45,9 @@ def rodar(
 def sobre():
     """
     Exibe informações sobre a biblioteca DOM-Heal e autoria.
+
+    Example:
+        dom-heal sobre
     """
     typer.echo("DOM-Heal: Biblioteca de Self-Healing para Testes Automatizados - Projeto de TCC (Jonnas Christian, UECE, 2025)")
 
