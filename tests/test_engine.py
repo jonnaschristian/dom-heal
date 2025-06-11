@@ -7,6 +7,7 @@ Cobrem o fluxo completo da função `self_heal` incluindo:
 - Mock de requisição HTTP (`requests.get`) para evitar conexões reais
 - Verificação dos caminhos retornados no dicionário de resultado
 """
+
 import pytest
 import json
 from pathlib import Path

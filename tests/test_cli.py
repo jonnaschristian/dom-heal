@@ -1,3 +1,16 @@
+"""
+Testes unitários para o módulo CLI (interface de linha de comando) da biblioteca DOM-Heal.
+
+Estes testes validam o comportamento dos comandos principais da interface, incluindo:
+- Execução e cobertura dos comandos `rodar` e `sobre`
+- Teste da exibição de mensagens de ajuda (`--help`)
+- Verificação do tratamento de opções obrigatórias ausentes
+- Uso de mocks e fixtures para simular o comportamento do mecanismo principal sem dependências reais do engine
+- Garantia de mensagens amigáveis e saídas corretas para o usuário
+
+Esses testes asseguram que a CLI seja intuitiva, robusta e informativa para qualquer usuário final da biblioteca.
+"""
+
 import json
 import pytest
 from typer.testing import CliRunner

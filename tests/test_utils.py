@@ -6,6 +6,7 @@ em especial a normalização de elementos, validando a conversão de dicionário
 em listas de elementos padronizados e assegurando compatibilidade entre formatos 
 diferentes de entrada dos seletores.
 """
+
 import pytest
 from dom_heal.utils import normalizar_elementos
 

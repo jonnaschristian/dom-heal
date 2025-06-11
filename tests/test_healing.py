@@ -4,6 +4,7 @@ Valida o comportamento da função atualizar_seletores no formato moderno:
 - Atualiza valores por nome lógico
 - Remove, adiciona e altera corretamente
 """
+
 import json
 import pytest
 from pathlib import Path

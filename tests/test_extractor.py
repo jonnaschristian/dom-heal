@@ -1,3 +1,17 @@
+"""
+Testes unitários para o módulo extractor da biblioteca DOM-Heal.
+
+Cobrem os principais fluxos de extração e montagem dos elementos do DOM, incluindo:
+- Carregamento de páginas e espera pelo DOM completo
+- Extração de atributos principais dos elementos (tag, id, class, name, type, text, aria-label, placeholder, xpath e data-*)
+- Validação do processamento de atributos customizados (data-*)
+- Simulação de diferentes cenários usando drivers e elementos mockados (DummyDriver/DummyElement)
+- Verificação do comportamento com e sem driver externo
+- Garantia de robustez das funções utilitárias de extração
+
+Esses testes garantem que a engine de extração do DOM funcione corretamente para diversos tipos de páginas e estruturas, base do mecanismo de self-healing.
+"""
+
 import pytest
 from types import SimpleNamespace
 from dom_heal import extractor

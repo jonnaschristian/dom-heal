@@ -1,3 +1,17 @@
+"""
+Testes unitários para o módulo comparator da biblioteca DOM-Heal.
+
+Cobrem diversos aspectos e funções do mecanismo de comparação de seletores, incluindo:
+- Formatação e detecção de tipos de seletores
+- Algoritmos de similaridade fuzzy e boosts aplicados
+- Cálculo de score entre classes e validação de XPath
+- Lógica de self-healing para sugestão automática de novos seletores
+- Matching de seletores antigos vs DOM novo, com cenários de empate e aplicação de boost
+- Cobertura da função gerar_diferencas para múltiplos casos, incluindo vazios e limiares
+
+Esses testes garantem a robustez das heurísticas e dos fluxos internos do comparator, servindo de base para validação do comportamento do self-healing.
+"""
+
 import pytest
 from rapidfuzz import fuzz
 from dom_heal.comparator import (
