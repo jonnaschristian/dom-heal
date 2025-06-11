@@ -8,9 +8,8 @@ Retorna uma lista de dicionários contendo os principais atributos de cada eleme
 Principais funcionalidades:
 - Navegação e carregamento headless do DOM
 - Extração de todos os elementos do <body> com atributos importantes (id, class, name, text, type, aria-label, placeholder, xpath, data-*)
-- Pronto para integração com qualquer pipeline de automação
 
-Ideal para rodar em pipelines, integração com CI/CD e como backend para engines de self-healing.
+Ideal para rodar como backend para engines de self-healing.
 """
 
 import time
@@ -55,14 +54,14 @@ def criar_driver() -> webdriver.Chrome:
         webdriver.Chrome: Instância configurada para execução headless.
     """
     opcoes = webdriver.ChromeOptions()
-    opcoes.add_argument('--headless')  # Pode comentar para debug local
+    opcoes.add_argument('--headless')  # Comente para debug local
     opcoes.add_argument('--disable-gpu')
     opcoes.add_argument('--log-level=3')
     opcoes.add_experimental_option('excludeSwitches', ['enable-logging'])
     servico = Service(ChromeDriverManager().install())
     return webdriver.Chrome(service=servico, options=opcoes)
 
-def carregar_pagina(driver: webdriver.Chrome, url: str, tempo_max: int = 10):
+def carregar_pagina(driver: webdriver.Chrome, url: str, tempo_max: int = 10, wait_after_load: float = 1):
     """
     Carrega a página informada e aguarda o carregamento completo do DOM.
 
@@ -70,13 +69,15 @@ def carregar_pagina(driver: webdriver.Chrome, url: str, tempo_max: int = 10):
         driver: Instância do Chrome.
         url: URL da página a ser carregada.
         tempo_max: Tempo máximo de espera em segundos (default=10).
+        wait_after_load: Espera adicional após o carregamento (default=1s).
     """
     driver.get(url)
     WebDriverWait(driver, tempo_max).until(
         lambda drv: drv.execute_script("return document.readyState") == 'complete'
     )
     driver.execute_script('window.scrollTo(0, document.body.scrollHeight)')
-    time.sleep(1)
+    if wait_after_load > 0:
+        time.sleep(wait_after_load)
 
 def obter_elementos(driver: webdriver.Chrome) -> list:
     """
@@ -148,7 +149,6 @@ def extrair_dom(url: str, driver=None) -> list:
         info_list = []
         for el in elementos:
             info = montar_info_elemento(drv, el)
-            # Print removido para uso em produção
             info_list.append(info)
         return info_list
     finally:
