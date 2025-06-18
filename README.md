@@ -11,6 +11,14 @@ DOM-Heal é uma biblioteca de _self-healing_ para automação de testes web. Ela
 
 ---
 
+## 🧑‍🏫 Autoria
+
+Elaborado por **Jonnas Christian Sousa de Paiva**  
+Trabalho de Conclusão de Curso (TCC) – Ciência da Computação – UECE  
+Orientação: **Prof. Dr. Ismayle de Sousa Santos**
+
+---
+
 ## ✨ Principais Funcionalidades
 
 - **Self-healing de seletores:** Ajusta e recupera seletores (`id`, `name`, `class`, `xpath`) automaticamente usando algoritmos fuzzy.
@@ -139,14 +147,6 @@ dom_heal/
 ├── healing.py     # Atualiza o JSON de seletores
 └── utils.py       # Funções utilitárias e normalização
 ```
-
----
-
-
-## 👨‍🏫 Autor
-
-Projeto desenvolvido por **Jonnas Christian Sousa de Paiva**  
-Contato: [jonnaschristian@gmail.com](mailto:jonnaschristian@gmail.com)
 
 ---
 
